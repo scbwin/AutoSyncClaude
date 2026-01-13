@@ -1,0 +1,85 @@
+[package]
+name = "claude-sync"
+version = "0.1.0"
+edition = "2021"
+authors = ["Claude Sync Team"]
+description = "Claude CLI configuration sync client"
+license = "MIT"
+
+[[bin]]
+name = "claude-sync"
+path = "src/main.rs"
+
+[dependencies]
+# gRPC 客户端
+tonic = "0.11"
+prost = "0.12"
+
+# 文件监控
+notify = "6.1"  # 跨平台文件监控
+
+# 配置
+toml = "0.8"
+serde = { version = "1.0", features = ["derive"] }
+dirs = "5.0"  # 获取标准目录
+
+# 认证
+jsonwebtoken = "9.2"
+
+# 文本合并
+similar = "2.4"  # diff 算法
+diff = "0.1"  # 文本差异
+
+# JSON/YAML 处理
+serde_json = "1.0"
+serde_yaml = "0.9"
+
+# 规则引擎
+glob = "0.3"
+regex = "1.10"
+
+# 加密
+aes-gcm = "0.10"
+rand = "0.8"
+
+# 异步运行时
+tokio = { version = "1.35", features = ["full"] }
+tokio-stream = "0.1"
+
+# 命令行
+clap = { version = "4.4", features = ["derive"] }
+dialoguer = "0.11"
+
+# 进度条
+indicatif = "0.17"
+
+# 日志
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-appender = "0.2"
+
+# 错误处理
+anyhow = "1.0"
+thiserror = "1.0"
+
+# 时间处理
+chrono = { version = "0.4", features = ["serde"] }
+
+# UUID
+uuid = { version = "1.6", features = ["v4", "serde"] }
+
+# 系统信息
+sysinfo = "0.30"
+gethostname = "0.4"
+
+# 哈希
+sha2 = "0.10"
+
+# 文件处理
+walkdir = "2.4"
+
+[build-dependencies]
+tonic-build = "0.11"
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.52", features = ["Win32_Storage_FileSystem"] }

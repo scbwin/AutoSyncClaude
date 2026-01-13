@@ -1,0 +1,122 @@
+version: '3.8'
+
+services:
+  # PostgreSQL 数据库
+  postgres:
+    image: postgres:15-alpine
+    container_name: claude-sync-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../migrations:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - claude-sync-network
+
+  # Redis 缓存
+  redis:
+    image: redis:7-alpine
+    container_name: claude-sync-redis
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - redis_data:/data
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - claude-sync-network
+
+  # MinIO 对象存储
+  minio:
+    image: minio/minio:latest
+    container_name: claude-sync-storage
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - minio_data:/data
+    ports:
+      - "${MINIO_API_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    networks:
+      - claude-sync-network
+
+  # gRPC API 服务器（TODO: 需要先构建镜像）
+  # api-server:
+  #   build:
+  #     context: ../server
+  #     dockerfile: Dockerfile
+  #   container_name: claude-sync-api
+  #   environment:
+  #     DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+  #     REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+  #     MINIO_ENDPOINT: minio:9000
+  #     MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
+  #     MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+  #     JWT_SECRET: ${JWT_SECRET}
+  #     RUST_LOG: ${RUST_LOG:-info}
+  #     SERVER_HOST: ${SERVER_HOST:-0.0.0.0}
+  #     SERVER_PORT: ${SERVER_PORT:-50051}
+  #   ports:
+  #     - "${SERVER_PORT:-50051}:50051"
+  #     - "${HEALTH_CHECK_PORT:-8080}:8080"
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+  #     minio:
+  #       condition: service_healthy
+  #   restart: unless-stopped
+  #   networks:
+  #     - claude-sync-network
+
+  # Nginx 反向代理（可选）
+  # nginx:
+  #   image: nginx:alpine
+  #   container_name: claude-sync-nginx
+  #   volumes:
+  #     - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+  #     - ./nginx/ssl:/etc/nginx/ssl:ro
+  #   ports:
+  #     - "${NGINX_HTTPS_PORT:-443}:443"
+  #     - "${NGINX_HTTP_PORT:-80}:80"
+  #   depends_on:
+  #     - api-server
+  #   restart: unless-stopped
+  #   networks:
+  #     - claude-sync-network
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  minio_data:
+    driver: local
+
+networks:
+  claude-sync-network:
+    driver: bridge

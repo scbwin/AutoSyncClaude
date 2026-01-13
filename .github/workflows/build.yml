@@ -1,0 +1,195 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:  # 允许手动触发
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  build-server:
+    name: Build Server
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: actions-rust-lang/setup-rust-toolchain@v1
+      with:
+        toolchain: stable
+
+    - name: Cache cargo registry
+      uses: actions/cache@v4
+      with:
+        path: ~/.cargo/registry
+        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Cache cargo index
+      uses: actions/cache@v4
+      with:
+        path: ~/.cargo/git
+        key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Cache cargo build
+      uses: actions/cache@v4
+      with:
+        path: server/target
+        key: ${{ runner.os }}-cargo-build-server-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Build server
+      working-directory: ./server
+      run: cargo build --verbose --release
+
+    - name: Run server tests
+      working-directory: ./server
+      run: cargo test --verbose
+
+    - name: Upload server binary
+      uses: actions/upload-artifact@v4
+      with:
+        name: claude-sync-server-linux
+        path: server/target/release/claude-sync-server
+        if-no-files-found: error
+
+  build-client:
+    name: Build Client
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            artifact_name: claude-sync-client-linux
+          - os: windows-latest
+            artifact_name: claude-sync-client-windows.exe
+          - os: macos-latest
+            artifact_name: claude-sync-client-macos
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: actions-rust-lang/setup-rust-toolchain@v1
+      with:
+        toolchain: stable
+
+    - name: Cache cargo registry
+      uses: actions/cache@v4
+      with:
+        path: ~/.cargo/registry
+        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Cache cargo index
+      uses: actions/cache@v4
+      with:
+        path: ~/.cargo/git
+        key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Cache cargo build
+      uses: actions/cache@v4
+      with:
+        path: client/target
+        key: ${{ runner.os }}-cargo-build-client-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Build client
+      working-directory: ./client
+      run: cargo build --verbose --release
+
+    - name: Run client tests
+      working-directory: ./client
+      run: cargo test --verbose
+
+    - name: Upload client binary
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.artifact_name }}
+        path: |
+          client/target/release/claude-sync-client
+          client/target/release/claude-sync-client.exe
+        if-no-files-found: error
+
+  # 生成 protobuf 代码并作为 artifact 下载
+  generate-proto:
+    name: Generate Protobuf Code
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: actions-rust-lang/setup-rust-toolchain@v1
+      with:
+        toolchain: stable
+
+    - name: Install protoc
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y protobuf-compiler
+
+    - name: Generate server proto code
+      working-directory: ./server
+      run: cargo build
+
+    - name: Generate client proto code
+      working-directory: ./client
+      run: cargo build
+
+    - name: Upload generated proto files (server)
+      uses: actions/upload-artifact@v4
+      with:
+        name: server-proto-code
+        path: server/src/proto/**/*.rs
+
+    - name: Upload generated proto files (client)
+      uses: actions/upload-artifact@v4
+      with:
+        name: client-proto-code
+        path: client/src/proto/**/*.rs
+
+  # 格式化检查
+  format-check:
+    name: Format Check
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: actions-rust-lang/setup-rust-toolchain@v1
+      with:
+        toolchain: stable
+        components: rustfmt
+
+    - name: Check formatting
+      run: |
+        cd server && cargo fmt -- --check
+        cd ../client && cargo fmt -- --check
+
+  # Clippy 检查
+  clippy-check:
+    name: Clippy Check
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: actions-rust-lang/setup-rust-toolchain@v1
+      with:
+        toolchain: stable
+        components: clippy
+
+    - name: Run clippy
+      run: |
+        cd server && cargo clippy -- -D warnings
+        cd ../client && cargo clippy -- -D warnings

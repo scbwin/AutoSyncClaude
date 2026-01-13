@@ -1,0 +1,438 @@
+syntax = "proto3";
+
+package claude_sync;
+
+// 认证服务
+service AuthService {
+    rpc Register(RegisterRequest) returns (RegisterResponse);
+    rpc Login(LoginRequest) returns (LoginResponse);
+    rpc RefreshToken(RefreshTokenRequest) returns (RefreshTokenResponse);
+    rpc Logout(LogoutRequest) returns (LogoutResponse);
+    rpc RevokeToken(RevokeTokenRequest) returns (RevokeTokenResponse);
+}
+
+// 设备管理服务
+service DeviceService {
+    rpc RegisterDevice(RegisterDeviceRequest) returns (RegisterDeviceResponse);
+    rpc ListDevices(ListDevicesRequest) returns (ListDevicesResponse);
+    rpc UpdateDevice(UpdateDeviceRequest) returns (UpdateDeviceResponse);
+    rpc RemoveDevice(RemoveDeviceRequest) returns (RemoveDeviceResponse);
+}
+
+// 同步规则服务
+service SyncRuleService {
+    rpc CreateRule(CreateRuleRequest) returns (CreateRuleResponse);
+    rpc ListRules(ListRulesRequest) returns (ListRulesResponse);
+    rpc UpdateRule(UpdateRuleRequest) returns (UpdateRuleResponse);
+    rpc DeleteRule(DeleteRuleRequest) returns (DeleteRuleResponse);
+    rpc ValidateRules(ValidateRulesRequest) returns (ValidateRulesResponse);
+}
+
+// 文件同步服务
+service FileSyncService {
+    // 客户端上报本地文件变更
+    rpc ReportChanges(ReportChangesRequest) returns (ReportChangesResponse);
+
+    // 下载远程变更
+    rpc FetchChanges(FetchChangesRequest) returns (stream FetchChangesResponse);
+
+    // 上传文件内容（流式传输大文件）
+    rpc UploadFile(stream UploadFileRequest) returns (UploadFileResponse);
+
+    // 下载文件内容（流式传输大文件）
+    rpc DownloadFile(DownloadFileRequest) returns (stream DownloadFileResponse);
+
+    // 全量同步
+    rpc FullSync(FullSyncRequest) returns (stream FullSyncResponse);
+
+    // 增量同步
+    rpc IncrementalSync(IncrementalSyncRequest) returns (stream IncrementalSyncResponse);
+
+    // 冲突解决
+    rpc ResolveConflict(ResolveConflictRequest) returns (ResolveConflictResponse);
+
+    // 获取文件历史版本
+    rpc GetFileHistory(GetFileHistoryRequest) returns (GetFileHistoryResponse);
+
+    // 恢复文件到指定版本
+    rpc RestoreFileVersion(RestoreFileVersionRequest) returns (RestoreFileVersionResponse);
+}
+
+// 实时通知服务
+service NotificationService {
+    // WebSocket 长连接，接收实时变更通知
+    rpc SubscribeChanges(SubscribeChangesRequest) returns (stream ChangeNotification);
+
+    // 心跳保持连接
+    rpc Heartbeat(stream HeartbeatRequest) returns (stream HeartbeatResponse);
+}
+
+// === 认证相关消息 ===
+
+message RegisterRequest {
+    string username = 1;
+    string email = 2;
+    string password = 3;
+}
+
+message RegisterResponse {
+    bool success = 1;
+    string message = 2;
+    string user_id = 3;
+}
+
+message LoginRequest {
+    string email = 1;
+    string password = 2;
+    string device_name = 3;
+    string device_type = 4;
+    string device_fingerprint = 5;
+}
+
+message LoginResponse {
+    bool success = 1;
+    string message = 2;
+    string access_token = 3;
+    string refresh_token = 4;
+    int64 expires_at = 5; // Unix timestamp
+    string user_id = 6;
+    string device_id = 7;
+}
+
+message RefreshTokenRequest {
+    string refresh_token = 1;
+}
+
+message RefreshTokenResponse {
+    bool success = 1;
+    string message = 2;
+    string access_token = 3;
+    int64 expires_at = 4;
+}
+
+message LogoutRequest {
+    string refresh_token = 1;
+}
+
+message LogoutResponse {
+    bool success = 1;
+    string message = 2;
+}
+
+message RevokeTokenRequest {
+    string token_id = 1;
+}
+
+message RevokeTokenResponse {
+    bool success = 1;
+    string message = 2;
+}
+
+// === 设备管理相关消息 ===
+
+message RegisterDeviceRequest {
+    string device_name = 1;
+    string device_type = 2; // 'windows', 'linux', 'macos'
+    string device_fingerprint = 3;
+}
+
+message RegisterDeviceResponse {
+    bool success = 1;
+    string message = 2;
+    string device_id = 3;
+}
+
+message ListDevicesRequest {
+    // 空请求，使用认证 token 中的 user_id
+}
+
+message ListDevicesResponse {
+    repeated Device devices = 1;
+}
+
+message Device {
+    string device_id = 1;
+    string device_name = 2;
+    string device_type = 3;
+    string device_fingerprint = 4;
+    int64 last_seen = 5; // Unix timestamp
+    int64 created_at = 6;
+    bool is_active = 7;
+}
+
+message UpdateDeviceRequest {
+    string device_id = 1;
+    string device_name = 2; // 可选，只更新设备名称
+}
+
+message UpdateDeviceResponse {
+    bool success = 1;
+    string message = 2;
+}
+
+message RemoveDeviceRequest {
+    string device_id = 1;
+}
+
+message RemoveDeviceResponse {
+    bool success = 1;
+    string message = 2;
+}
+
+// === 同步规则相关消息 ===
+
+message CreateRuleRequest {
+    string rule_name = 1;
+    string rule_type = 2; // 'include', 'exclude'
+    string pattern = 3; // glob 模式或正则表达式
+    string file_type = 4; // 'agent', 'skill', 'plugin', 'command', 'config'
+    int32 priority = 5;
+    bool device_specific = 6; // 是否仅对当前设备生效
+}
+
+message CreateRuleResponse {
+    bool success = 1;
+    string message = 2;
+    string rule_id = 3;
+}
+
+message ListRulesRequest {
+    string device_id = 1; // 可选，筛选特定设备的规则
+}
+
+message ListRulesResponse {
+    repeated SyncRule rules = 1;
+}
+
+message SyncRule {
+    string rule_id = 1;
+    string rule_name = 2;
+    string rule_type = 3; // 'include', 'exclude'
+    string pattern = 4;
+    string file_type = 5;
+    int32 priority = 6;
+    bool device_specific = 7;
+    int64 created_at = 8;
+}
+
+message UpdateRuleRequest {
+    string rule_id = 1;
+    string rule_name = 2;
+    string rule_type = 3;
+    string pattern = 4;
+    string file_type = 5;
+    int32 priority = 6;
+}
+
+message UpdateRuleResponse {
+    bool success = 1;
+    string message = 2;
+}
+
+message DeleteRuleRequest {
+    string rule_id = 1;
+}
+
+message DeleteRuleResponse {
+    bool success = 1;
+    string message = 2;
+}
+
+message ValidateRulesRequest {
+    repeated SyncRule rules = 1;
+}
+
+message ValidateRulesResponse {
+    bool is_valid = 1;
+    repeated string warnings = 2;
+    repeated string errors = 3;
+}
+
+// === 文件相关消息 ===
+
+message FileInfo {
+    string file_path = 1; // 相对路径，如 "agents/my-agent.md"
+    string file_hash = 2; // SHA-256
+    int64 file_size = 3;
+    int64 modified_at = 4; // Unix timestamp (milliseconds)
+    int32 version = 5;
+    string device_id = 6;
+    bool is_deleted = 7;
+    string file_type = 8; // 'text', 'json', 'binary'
+}
+
+message FileChunk {
+    int64 chunk_number = 1;
+    bytes data = 2;
+    int64 offset = 3;
+}
+
+message UploadFileRequest {
+    oneof payload {
+        FileInfo metadata = 1;
+        FileChunk chunk = 2;
+    }
+}
+
+message UploadFileResponse {
+    bool success = 1;
+    string message = 2;
+    string version_id = 3;
+    int32 version_number = 4;
+}
+
+message DownloadFileRequest {
+    string file_path = 1;
+    int32 version_number = 2; // 0 表示最新版本
+}
+
+message DownloadFileResponse {
+    oneof payload {
+        FileInfo metadata = 1;
+        FileChunk chunk = 2;
+    }
+}
+
+// === 同步相关消息 ===
+
+message ReportChangesRequest {
+    repeated FileInfo changes = 1;
+    string device_id = 2;
+}
+
+message ReportChangesResponse {
+    bool success = 1;
+    string message = 2;
+    repeated string conflicts_detected = 3; // 冲突文件的路径列表
+    repeated string pending_uploads = 4; // 需要上传的文件路径列表
+}
+
+message FetchChangesRequest {
+    int64 since_version = 1; // 增量同步的基准点（Unix timestamp）
+    repeated string file_patterns = 2; // 过滤模式
+}
+
+message FetchChangesResponse {
+    repeated FileInfo changes = 1;
+    bool has_more = 2;
+}
+
+message ConflictInfo {
+    string conflict_id = 1;
+    string file_path = 2;
+    FileInfo base_version = 3;
+    FileInfo local_version = 4;
+    FileInfo remote_version = 5;
+    string conflict_type = 6; // 'modify_modify', 'modify_delete', 'binary_conflict'
+    string conflict_data = 7; // JSON 序列化的冲突详情
+}
+
+message ResolveConflictRequest {
+    string conflict_id = 1;
+    string resolution = 2; // 'keep_local', 'keep_remote', 'keep_merged', 'postpone'
+    string merged_content = 3; // 如果选择合并，提供合并后的内容
+}
+
+message ResolveConflictResponse {
+    bool success = 1;
+    string message = 2;
+    string new_version_id = 3;
+}
+
+message FullSyncRequest {
+    // 空请求，使用认证 token 中的 user_id 和 device_id
+}
+
+message FullSyncResponse {
+    oneof payload {
+        SyncProgress progress = 1;
+        SyncError error = 2;
+        SyncComplete complete = 3;
+    }
+}
+
+message SyncProgress {
+    int32 files_processed = 1;
+    int32 total_files = 2;
+    string current_file = 3;
+}
+
+message SyncError {
+    string file_path = 1;
+    string error_message = 2;
+}
+
+message SyncComplete {
+    int32 files_uploaded = 1;
+    int32 files_downloaded = 2;
+    int32 files_failed = 3;
+    int32 conflicts_detected = 4;
+}
+
+message IncrementalSyncRequest {
+    int64 since_timestamp = 1; // Unix timestamp
+}
+
+message IncrementalSyncResponse {
+    oneof payload {
+        FileChange change = 1;
+        SyncError error = 2;
+        SyncComplete complete = 3;
+    }
+}
+
+message FileChange {
+    FileInfo file_info = 1;
+    string action = 2; // 'upload', 'download', 'delete'
+}
+
+message GetFileHistoryRequest {
+    string file_path = 1;
+    int32 limit = 2; // 返回的版本数量限制
+}
+
+message GetFileHistoryResponse {
+    repeated FileVersion versions = 1;
+}
+
+message FileVersion {
+    string version_id = 1;
+    int32 version_number = 2;
+    string file_path = 3;
+    string file_hash = 4;
+    int64 file_size = 5;
+    string device_id = 6;
+    int64 created_at = 7;
+}
+
+message RestoreFileVersionRequest {
+    string file_path = 1;
+    int32 version_number = 2;
+}
+
+message RestoreFileVersionResponse {
+    bool success = 1;
+    string message = 2;
+    FileInfo restored_file = 3;
+}
+
+// === 实时通知相关消息 ===
+
+message ChangeNotification {
+    string device_id = 1;
+    repeated FileInfo changes = 2;
+    int64 timestamp = 3; // Unix timestamp
+}
+
+message SubscribeChangesRequest {
+    repeated string file_patterns = 1; // 订阅特定文件模式
+}
+
+message HeartbeatRequest {
+    int64 timestamp = 1;
+}
+
+message HeartbeatResponse {
+    int64 timestamp = 1;
+    repeated FileInfo pending_changes = 2; // 待处理的变更
+}

@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(superpowers:brainstorming)",
+      "Bash(set USERPROFILE)",
+      "Bash(echo:*)",
+      "Bash(tree:*)",
+      "Bash(cargo init:*)",
+      "Bash(cargo check:*)",
+      "Bash(cargo:*)",
+      "Bash(rustc:*)",
+      "Bash(protoc:*)",
+      "Bash(export:*)",
+      "Bash(export TMPDIR=/d/temp:*)"
+    ]
+  }
+}

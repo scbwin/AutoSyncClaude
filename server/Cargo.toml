@@ -1,0 +1,73 @@
+[package]
+name = "claude-sync-server"
+version = "0.1.0"
+edition = "2021"
+authors = ["Claude Sync Team"]
+description = "Claude CLI configuration sync server"
+license = "MIT"
+
+[dependencies]
+# gRPC 框架
+tonic = "0.11"
+prost = "0.12"
+
+# 数据库
+sqlx = { version = "0.7", features = ["postgres", "runtime-tokio-rustls", "chrono", "uuid"] }
+deadpool-postgres = "0.14"
+
+# Redis
+deadpool-redis = "0.14"
+redis = { version = "0.24", features = ["tokio-comp", "connection-manager", "aio"] }
+
+# 对象存储
+rust-s3 = "0.34"  # MinIO/S3 客户端
+
+# HTTP 服务器（健康检查）
+axum = "0.7"
+tower = "0.4"
+
+# 认证
+jsonwebtoken = "9.2"
+bcrypt = "0.15"
+
+# 序列化
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# 异步运行时
+tokio = { version = "1.35", features = ["full"] }
+tokio-stream = "0.1"
+
+# 日志
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+tracing-appender = "0.2"
+
+# 错误处理
+anyhow = "1.0"
+thiserror = "1.0"
+
+# 时间处理
+chrono = { version = "0.4", features = ["serde"] }
+
+# UUID
+uuid = { version = "1.6", features = ["v4", "serde"] }
+
+# 环境变量
+dotenv = "0.15"
+
+# 配置
+config = "0.14"
+
+# 哈希
+sha2 = "0.10"
+
+# 类型转换
+async-trait = "0.1"
+
+[build-dependencies]
+tonic-build = "0.11"
+
+[[bin]]
+name = "claude-sync-server"
+path = "src/main.rs"

@@ -1,0 +1,51 @@
+# Rust
+/target/
+**/*.rs.bk
+*.pdb
+Cargo.lock
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# 日志
+*.log
+
+# 配置（敏感信息）
+.env
+docker/.env
+
+# Protocol Buffers 生成文件
+server/src/proto/
+client/src/proto/
+
+# 数据
+postgres_data/
+redis_data/
+minio_data/
+
+# 构建产物
+*.exe
+*.dll
+*.so
+*.dylib
+
+# 测试
+/test-data/
+
+# 临时文件
+tmp*/
+*.tmp
+*.bak
+
+# 操作系统
+Thumbs.db
+.DS_Store
+
+# Claude Sync 特定
+.claude-sync/
+*.toml.local
