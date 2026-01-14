@@ -1,7 +1,8 @@
 use anyhow::Result;
-use sqlx::postgres::PgPoolOptions;
+use sqlx::{postgres::PgPoolOptions, Row};
 use std::time::Duration;
 use tracing::info;
+use uuid::Uuid;
 
 use crate::config::Config;
 
@@ -85,15 +86,14 @@ pub struct UserRepository;
 impl UserRepository {
     /// 根据邮箱查找用户
     pub async fn find_by_email(pool: &sqlx::PgPool, email: &str) -> Result<Option<UserRow>> {
-        let user = sqlx::query_as!(
-            UserRow,
+        let user = sqlx::query_as::<_, UserRow>(
             r#"
             SELECT id, username, email, password_hash, created_at, updated_at, is_active
             FROM users
             WHERE email = $1
-            "#,
-            email
+            "#
         )
+        .bind(email)
         .fetch_optional(pool)
         .await?;
 
@@ -102,15 +102,14 @@ impl UserRepository {
 
     /// 根据用户名查找用户
     pub async fn find_by_username(pool: &sqlx::PgPool, username: &str) -> Result<Option<UserRow>> {
-        let user = sqlx::query_as!(
-            UserRow,
+        let user = sqlx::query_as::<_, UserRow>(
             r#"
             SELECT id, username, email, password_hash, created_at, updated_at, is_active
             FROM users
             WHERE username = $1
-            "#,
-            username
+            "#
         )
+        .bind(username)
         .fetch_optional(pool)
         .await?;
 
@@ -118,16 +117,15 @@ impl UserRepository {
     }
 
     /// 根据 ID 查找用户
-    pub async fn find_by_id(pool: &sqlx::PgPool, id: &uuid::Uuid) -> Result<Option<UserRow>> {
-        let user = sqlx::query_as!(
-            UserRow,
+    pub async fn find_by_id(pool: &sqlx::PgPool, id: &Uuid) -> Result<Option<UserRow>> {
+        let user = sqlx::query_as::<_, UserRow>(
             r#"
             SELECT id, username, email, password_hash, created_at, updated_at, is_active
             FROM users
             WHERE id = $1
-            "#,
-            id
+            "#
         )
+        .bind(id)
         .fetch_optional(pool)
         .await?;
 
@@ -141,17 +139,16 @@ impl UserRepository {
         email: &str,
         password_hash: &str,
     ) -> Result<UserRow> {
-        let user = sqlx::query_as!(
-            UserRow,
+        let user = sqlx::query_as::<_, UserRow>(
             r#"
             INSERT INTO users (username, email, password_hash)
             VALUES ($1, $2, $3)
             RETURNING id, username, email, password_hash, created_at, updated_at, is_active
-            "#,
-            username,
-            email,
-            password_hash
+            "#
         )
+        .bind(username)
+        .bind(email)
+        .bind(password_hash)
         .fetch_one(pool)
         .await?;
 
@@ -159,15 +156,15 @@ impl UserRepository {
     }
 
     /// 更新用户最后登录时间
-    pub async fn update_last_login(pool: &sqlx::PgPool, user_id: &uuid::Uuid) -> Result<()> {
-        sqlx::query!(
+    pub async fn update_last_login(pool: &sqlx::PgPool, user_id: &Uuid) -> Result<()> {
+        sqlx::query(
             r#"
             UPDATE users
             SET updated_at = NOW()
             WHERE id = $1
-            "#,
-            user_id
+            "#
         )
+        .bind(user_id)
         .execute(pool)
         .await?;
 
@@ -182,19 +179,18 @@ impl DeviceRepository {
     /// 根据用户 ID 查找所有设备
     pub async fn find_by_user(
         pool: &sqlx::PgPool,
-        user_id: &uuid::Uuid,
+        user_id: &Uuid,
     ) -> Result<Vec<DeviceRow>> {
-        let devices = sqlx::query_as!(
-            DeviceRow,
+        let devices = sqlx::query_as::<_, DeviceRow>(
             r#"
             SELECT id, user_id, device_name, device_type, device_fingerprint,
                    last_seen, created_at, is_active
             FROM devices
             WHERE user_id = $1
             ORDER BY created_at DESC
-            "#,
-            user_id
+            "#
         )
+        .bind(user_id)
         .fetch_all(pool)
         .await?;
 
@@ -206,16 +202,15 @@ impl DeviceRepository {
         pool: &sqlx::PgPool,
         fingerprint: &str,
     ) -> Result<Option<DeviceRow>> {
-        let device = sqlx::query_as!(
-            DeviceRow,
+        let device = sqlx::query_as::<_, DeviceRow>(
             r#"
             SELECT id, user_id, device_name, device_type, device_fingerprint,
                    last_seen, created_at, is_active
             FROM devices
             WHERE device_fingerprint = $1
-            "#,
-            fingerprint
+            "#
         )
+        .bind(fingerprint)
         .fetch_optional(pool)
         .await?;
 
@@ -225,24 +220,23 @@ impl DeviceRepository {
     /// 创建新设备
     pub async fn create(
         pool: &sqlx::PgPool,
-        user_id: &uuid::Uuid,
+        user_id: &Uuid,
         device_name: &str,
         device_type: &str,
         device_fingerprint: &str,
     ) -> Result<DeviceRow> {
-        let device = sqlx::query_as!(
-            DeviceRow,
+        let device = sqlx::query_as::<_, DeviceRow>(
             r#"
             INSERT INTO devices (user_id, device_name, device_type, device_fingerprint)
             VALUES ($1, $2, $3, $4)
             RETURNING id, user_id, device_name, device_type, device_fingerprint,
                       last_seen, created_at, is_active
-            "#,
-            user_id,
-            device_name,
-            device_type,
-            device_fingerprint
+            "#
         )
+        .bind(user_id)
+        .bind(device_name)
+        .bind(device_type)
+        .bind(device_fingerprint)
         .fetch_one(pool)
         .await?;
 
@@ -250,15 +244,15 @@ impl DeviceRepository {
     }
 
     /// 更新设备最后在线时间
-    pub async fn update_last_seen(pool: &sqlx::PgPool, device_id: &uuid::Uuid) -> Result<()> {
-        sqlx::query!(
+    pub async fn update_last_seen(pool: &sqlx::PgPool, device_id: &Uuid) -> Result<()> {
+        sqlx::query(
             r#"
             UPDATE devices
             SET last_seen = NOW()
             WHERE id = $1
-            "#,
-            device_id
+            "#
         )
+        .bind(device_id)
         .execute(pool)
         .await?;
 
@@ -266,15 +260,15 @@ impl DeviceRepository {
     }
 
     /// 删除设备
-    pub async fn delete(pool: &sqlx::PgPool, device_id: &uuid::Uuid) -> Result<()> {
-        sqlx::query!(
+    pub async fn delete(pool: &sqlx::PgPool, device_id: &Uuid) -> Result<()> {
+        sqlx::query(
             r#"
             UPDATE devices
             SET is_active = false
             WHERE id = $1
-            "#,
-            device_id
+            "#
         )
+        .bind(device_id)
         .execute(pool)
         .await?;
 
@@ -289,26 +283,25 @@ impl TokenRepository {
     /// 保存 Token
     pub async fn save(
         pool: &sqlx::PgPool,
-        user_id: &uuid::Uuid,
-        device_id: Option<&uuid::Uuid>,
+        user_id: &Uuid,
+        device_id: Option<&Uuid>,
         token_hash: &str,
         token_prefix: &str,
         expires_at: &chrono::DateTime<chrono::Utc>,
     ) -> Result<TokenRow> {
-        let token = sqlx::query_as!(
-            TokenRow,
+        let token = sqlx::query_as::<_, TokenRow>(
             r#"
             INSERT INTO access_tokens (user_id, device_id, token_hash, token_prefix, expires_at)
             VALUES ($1, $2, $3, $4, $5)
             RETURNING id, user_id, device_id, token_hash, token_prefix,
                       expires_at, created_at, last_used, is_revoked
-            "#,
-            user_id,
-            device_id,
-            token_hash,
-            token_prefix,
-            expires_at
+            "#
         )
+        .bind(user_id)
+        .bind(device_id)
+        .bind(token_hash)
+        .bind(token_prefix)
+        .bind(expires_at)
         .fetch_one(pool)
         .await?;
 
@@ -317,16 +310,15 @@ impl TokenRepository {
 
     /// 根据 Token 哈希查找
     pub async fn find_by_hash(pool: &sqlx::PgPool, token_hash: &str) -> Result<Option<TokenRow>> {
-        let token = sqlx::query_as!(
-            TokenRow,
+        let token = sqlx::query_as::<_, TokenRow>(
             r#"
             SELECT id, user_id, device_id, token_hash, token_prefix,
                    expires_at, created_at, last_used, is_revoked
             FROM access_tokens
             WHERE token_hash = $1
-            "#,
-            token_hash
+            "#
         )
+        .bind(token_hash)
         .fetch_optional(pool)
         .await?;
 
@@ -334,15 +326,15 @@ impl TokenRepository {
     }
 
     /// 撤销 Token
-    pub async fn revoke(pool: &sqlx::PgPool, token_id: &uuid::Uuid) -> Result<()> {
-        sqlx::query!(
+    pub async fn revoke(pool: &sqlx::PgPool, token_id: &Uuid) -> Result<()> {
+        sqlx::query(
             r#"
             UPDATE access_tokens
             SET is_revoked = true
             WHERE id = $1
-            "#,
-            token_id
+            "#
         )
+        .bind(token_id)
         .execute(pool)
         .await?;
 
@@ -350,15 +342,15 @@ impl TokenRepository {
     }
 
     /// 更新 Token 最后使用时间
-    pub async fn update_last_used(pool: &sqlx::PgPool, token_id: &uuid::Uuid) -> Result<()> {
-        sqlx::query!(
+    pub async fn update_last_used(pool: &sqlx::PgPool, token_id: &Uuid) -> Result<()> {
+        sqlx::query(
             r#"
             UPDATE access_tokens
             SET last_used = NOW()
             WHERE id = $1
-            "#,
-            token_id
+            "#
         )
+        .bind(token_id)
         .execute(pool)
         .await?;
 
@@ -367,7 +359,7 @@ impl TokenRepository {
 
     /// 清理过期 Token
     pub async fn cleanup_expired(pool: &sqlx::PgPool) -> Result<u64> {
-        let result: sqlx::postgres::PgQueryResult = sqlx::query!(
+        let result = sqlx::query(
             r#"
             DELETE FROM access_tokens
             WHERE expires_at < NOW() - INTERVAL '7 days'
@@ -384,7 +376,7 @@ impl TokenRepository {
 
 #[derive(Debug, Clone)]
 pub struct UserRow {
-    pub id: uuid::Uuid,
+    pub id: Uuid,
     pub username: String,
     pub email: String,
     pub password_hash: String,
@@ -395,8 +387,8 @@ pub struct UserRow {
 
 #[derive(Debug, Clone)]
 pub struct DeviceRow {
-    pub id: uuid::Uuid,
-    pub user_id: uuid::Uuid,
+    pub id: Uuid,
+    pub user_id: Uuid,
     pub device_name: String,
     pub device_type: String,
     pub device_fingerprint: String,
@@ -407,9 +399,9 @@ pub struct DeviceRow {
 
 #[derive(Debug, Clone)]
 pub struct TokenRow {
-    pub id: uuid::Uuid,
-    pub user_id: uuid::Uuid,
-    pub device_id: Option<uuid::Uuid>,
+    pub id: Uuid,
+    pub user_id: Uuid,
+    pub device_id: Option<Uuid>,
     pub token_hash: String,
     pub token_prefix: String,
     pub expires_at: chrono::DateTime<chrono::Utc>,

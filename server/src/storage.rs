@@ -71,7 +71,7 @@ impl StorageService {
         );
 
         let content_type = content_type.unwrap_or_else(|| "application/octet-stream".to_string());
-        let _ = self.bucket.put_object_with_content_type(
+        let _: Vec<u8> = self.bucket.put_object_with_content_type(
             &storage_path.full_path(),
             &data,
             &content_type,
@@ -92,7 +92,7 @@ impl StorageService {
             user_id, file_hash
         );
 
-        let data = self.bucket.get_object(&storage_path.full_path()).await
+        let data: Vec<u8> = self.bucket.get_object(&storage_path.full_path()).await
             .map_err(|e| anyhow::anyhow!("Failed to download file: {}", e))?;
 
         debug!("✓ File downloaded successfully: {} bytes", data.len());
@@ -109,7 +109,7 @@ impl StorageService {
             user_id, file_hash
         );
 
-        self.bucket.delete_object(&storage_path.full_path()).await
+        let _: Vec<u8> = self.bucket.delete_object(&storage_path.full_path()).await
             .map_err(|e| anyhow::anyhow!("Failed to delete file: {}", e))?;
 
         debug!("✓ File deleted successfully");
@@ -122,7 +122,7 @@ impl StorageService {
         let storage_path = self.generate_storage_path(user_id, file_hash);
 
         match self.bucket.head_object(&storage_path.full_path()).await {
-            Ok(_) => Ok(true),
+            Ok(_result) => Ok(true),
             Err(e) => {
                 let err_str = e.to_string();
                 if err_str.contains("404") || err_str.contains("Not Found") {

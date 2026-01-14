@@ -462,7 +462,7 @@ impl FileSyncGrpcService {
         _user_id: &Uuid,
         _device_id: &Uuid,
         file_info: FileInfo,
-    ) -> Result<FileChangeResult> {
+    ) -> anyhow::Result<FileChangeResult> {
         // TODO: 实现文件变更处理逻辑
         debug!("Processing file change: {:?}", file_info.file_path);
         Ok(FileChangeResult::Success)
