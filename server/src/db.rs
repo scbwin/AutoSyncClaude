@@ -1,9 +1,7 @@
-use crate::config::Config;
 use anyhow::Result;
-use deadpool_postgres::{Config as PgConfig, Pool, Runtime};
 use sqlx::postgres::PgPoolOptions;
 use std::time::Duration;
-use tracing::{info, trace};
+use tracing::info;
 
 /// 数据库连接池
 #[derive(Clone)]
@@ -367,7 +365,7 @@ impl TokenRepository {
 
     /// 清理过期 Token
     pub async fn cleanup_expired(pool: &sqlx::PgPool) -> Result<u64> {
-        let result = sqlx::query!(
+        let result: sqlx::postgres::PgQueryResult = sqlx::query!(
             r#"
             DELETE FROM access_tokens
             WHERE expires_at < NOW() - INTERVAL '7 days'

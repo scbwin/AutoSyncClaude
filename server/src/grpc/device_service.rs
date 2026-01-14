@@ -1,6 +1,4 @@
-use crate::db::{DbPool, DeviceRepository};
-use anyhow::Result;
-use tonic::{Request, Response, Status};
+use crate::db::DbPool;
 
 /// DeviceService gRPC 实现
 pub struct DeviceGrpcService {

@@ -1,10 +1,7 @@
 use crate::cache::{Cache, FileChangeNotification, ChangeType};
 use crate::db::DbPool;
 use crate::storage::StorageService;
-use anyhow::Result;
-use std::collections::HashMap;
-use tonic::{Request, Response, Status};
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error};
 use uuid::Uuid;
 
 /// FileSyncService gRPC 实现

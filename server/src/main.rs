@@ -11,7 +11,7 @@ mod storage;
 use anyhow::Result;
 use server::GrpcServer;
 use std::sync::Arc;
-use tracing::{error, info, warn, Level};
+use tracing::{error, info, Level};
 use tracing_subscriber;
 
 #[tokio::main]

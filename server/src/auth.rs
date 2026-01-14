@@ -1,11 +1,11 @@
 use crate::cache::Cache;
 use crate::config::Config;
 use crate::db::{DbPool, TokenRepository, UserRepository};
-use crate::models::{Claims, TokenType, User};
+use crate::models::{Claims, TokenType};
 use anyhow::Result;
 use chrono::{Duration, Utc};
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
-use tracing::{error, info, warn};
+use tracing::{info, warn};
 use uuid::Uuid;
 
 /// JWT 认证服务
@@ -20,13 +20,13 @@ pub struct AuthService {
 impl AuthService {
     /// 创建新的认证服务实例
     pub fn new(pool: DbPool, cache: Cache, config: Config) -> Self {
-        let secret = config.jwt.secret.as_bytes();
+        let secret = config.jwt.secret.clone();
         Self {
             pool,
             cache,
             config,
-            encoding_key: EncodingKey::from_secret(secret),
-            decoding_key: DecodingKey::from_secret(secret),
+            encoding_key: EncodingKey::from_secret(secret.as_bytes()),
+            decoding_key: DecodingKey::from_secret(secret.as_bytes()),
         }
     }
 
@@ -231,9 +231,9 @@ impl AuthService {
     /// ===== 内部辅助方法 =====
 
     /// 生成 Access Token 和 Refresh Token
-    fn generate_tokens(&self, user_id: Uuid, device_id: Uuid) -> Result<(String, String)> {
-        let access_token = self.generate_token(user_id, Some(device_id), TokenType::Access)?;
-        let refresh_token = self.generate_token(user_id, Some(device_id), TokenType::Refresh)?;
+    fn generate_tokens(&self, user_id: Uuid, device_id: Option<Uuid>) -> Result<(String, String)> {
+        let access_token = self.generate_token(user_id, device_id, TokenType::Access)?;
+        let refresh_token = self.generate_token(user_id, device_id, TokenType::Refresh)?;
         Ok((access_token, refresh_token))
     }
 

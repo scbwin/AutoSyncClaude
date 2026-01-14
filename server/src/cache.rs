@@ -1,9 +1,8 @@
-use crate::config::Config;
 use anyhow::Result;
-use deadpool_redis::{Config, Pool, Runtime};
+use deadpool_redis::{Config as RedisConfig, Pool, Runtime};
 use redis::AsyncCommands;
 use std::time::Duration;
-use tracing::{error, info};
+use tracing::info;
 
 /// Redis 连接池
 #[derive(Clone)]
@@ -13,10 +12,10 @@ pub struct RedisPool {
 
 impl RedisPool {
     /// 从配置创建 Redis 连接池
-    pub async fn from_config(config: &Config) -> Result<Self> {
+    pub async fn from_config(redis_url: &str) -> Result<Self> {
         info!("Connecting to Redis...");
 
-        let cfg = Config::from_url(config.redis.url.clone());
+        let cfg = RedisConfig::from_url(redis_url);
         let pool = cfg
             .create_pool(Some(Runtime::Tokio1))
             .map_err(|e| anyhow::anyhow!("Failed to create Redis pool: {}", e))?;
@@ -53,6 +52,7 @@ impl RedisPool {
 }
 
 /// Redis 缓存操作
+#[derive(Clone)]
 pub struct Cache {
     pool: Pool,
 }
@@ -69,10 +69,10 @@ impl Cache {
     pub async fn revoke_token(&self, jti: &uuid::Uuid, expires_at: i64) -> Result<()> {
         let key = format!("token:blacklist:{}", jti);
         let ttl = expires_at - chrono::Utc::now().timestamp();
-        let ttl = ttl.max(0) as usize;
+        let ttl = ttl.max(0) as u64;
 
         let mut conn = self.pool.get().await?;
-        conn.set_ex(key, "1", ttl).await?;
+        conn.set_ex::<_, _, ()>(&key, "1", ttl).await?;
 
         Ok(())
     }
@@ -93,10 +93,10 @@ impl Cache {
         let mut conn = self.pool.get().await?;
 
         // 添加到在线设备集合
-        conn.sadd(&key, device_id.to_string()).await?;
+        conn.sadd::<_, _, ()>(&key, device_id.to_string()).await?;
 
         // 设置过期时间（30 分钟）
-        conn.expire(&key, 1800).await?;
+        conn.expire::<_, ()>(&key, 1800).await?;
 
         Ok(())
     }
@@ -106,7 +106,7 @@ impl Cache {
         let key = format!("device:online:{}", user_id);
         let mut conn = self.pool.get().await?;
 
-        conn.srem(&key, device_id.to_string()).await?;
+        conn.srem::<_, _, ()>(&key, device_id.to_string()).await?;
 
         Ok(())
     }
@@ -148,10 +148,10 @@ impl Cache {
         let mut conn = self.pool.get().await?;
 
         let value = serde_json::to_string(change)?;
-        conn.rpush(&key, value).await?;
+        conn.rpush::<_, _, ()>(&key, value).await?;
 
         // 限制队列长度（最多保留 1000 条）
-        conn.ltrim(&key, -1000, -1).await?;
+        conn.ltrim::<_, ()>(&key, -1000, -1).await?;
 
         Ok(())
     }
@@ -165,7 +165,12 @@ impl Cache {
         let key = format!("changes:{}", user_id);
         let mut conn = self.pool.get().await?;
 
-        let changes: Vec<String> = conn.lpop(&key, count).await?;
+        let count_nonzero = std::num::NonZero::new(count);
+        let changes: Vec<String> = if let Some(cnt) = count_nonzero {
+            conn.lpop(&key, Some(cnt)).await?
+        } else {
+            Vec::new()
+        };
 
         let changes = changes
             .iter()
@@ -187,9 +192,9 @@ impl Cache {
         let mut conn = self.pool.get().await?;
 
         if let Some(ttl) = ttl {
-            conn.set_ex(key, value, ttl.as_secs() as usize).await?;
+            conn.set_ex::<_, _, ()>(key, value, ttl.as_secs()).await?;
         } else {
-            conn.set(key, value).await?;
+            conn.set::<_, _, ()>(key, value).await?;
         }
 
         Ok(())
@@ -205,7 +210,7 @@ impl Cache {
     /// 删除缓存
     pub async fn delete(&self, key: &str) -> Result<()> {
         let mut conn = self.pool.get().await?;
-        conn.del(key).await?;
+        conn.del::<_, ()>(key).await?;
         Ok(())
     }
 
@@ -219,7 +224,7 @@ impl Cache {
     /// 设置过期时间
     pub async fn expire(&self, key: &str, ttl: Duration) -> Result<()> {
         let mut conn = self.pool.get().await?;
-        conn.expire(key, ttl.as_secs() as usize).await?;
+        conn.expire::<_, ()>(key, ttl.as_secs() as i64).await?;
         Ok(())
     }
 
@@ -230,7 +235,7 @@ impl Cache {
         }
 
         let mut conn = self.pool.get().await?;
-        conn.del(keys).await?;
+        conn.del::<_, ()>(keys).await?;
         Ok(())
     }
 

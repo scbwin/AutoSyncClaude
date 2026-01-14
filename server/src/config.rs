@@ -83,27 +83,27 @@ impl Config {
         Ok(Self {
             server: ServerConfig {
                 host: Self::get_env("SERVER_HOST", "0.0.0.0".to_string()),
-                port: Self::get_env("SERVER_PORT", "50051").parse()?,
-                health_check_port: Self::get_env("HEALTH_CHECK_PORT", "8080").parse()?,
-                max_connections: Self::get_env("MAX_CONNECTIONS", "10000").parse()?,
-                timeout: Self::get_env("SERVER_TIMEOUT", "30").parse()?,
+                port: Self::get_env("SERVER_PORT", "50051".to_string()).parse()?,
+                health_check_port: Self::get_env("HEALTH_CHECK_PORT", "8080".to_string()).parse()?,
+                max_connections: Self::get_env("MAX_CONNECTIONS", "10000".to_string()).parse()?,
+                timeout: Self::get_env("SERVER_TIMEOUT", "30".to_string()).parse()?,
             },
             database: DatabaseConfig {
                 url: Self::get_env(
                     "DATABASE_URL",
                     "postgresql://claude_sync:password@localhost/claude_sync".to_string(),
                 ),
-                max_connections: Self::get_env("DB_MAX_CONNECTIONS", "20").parse()?,
-                min_connections: Self::get_env("DB_MIN_CONNECTIONS", "5").parse()?,
-                acquire_timeout: Self::get_env("DB_ACQUIRE_TIMEOUT", "30").parse()?,
-                idle_timeout: Self::get_env("DB_IDLE_TIMEOUT", "600").parse()?,
-                max_lifetime: Self::get_env("DB_MAX_LIFETIME", "1800").parse()?,
+                max_connections: Self::get_env("DB_MAX_CONNECTIONS", "20".to_string()).parse()?,
+                min_connections: Self::get_env("DB_MIN_CONNECTIONS", "5".to_string()).parse()?,
+                acquire_timeout: Self::get_env("DB_ACQUIRE_TIMEOUT", "30".to_string()).parse()?,
+                idle_timeout: Self::get_env("DB_IDLE_TIMEOUT", "600".to_string()).parse()?,
+                max_lifetime: Self::get_env("DB_MAX_LIFETIME", "1800".to_string()).parse()?,
             },
             redis: RedisConfig {
                 url: Self::get_env("REDIS_URL", "redis://127.0.0.1:6379".to_string()),
-                max_connections: Self::get_env("REDIS_MAX_CONNECTIONS", "20").parse()?,
-                connection_timeout: Self::get_env("REDIS_CONNECTION_TIMEOUT", "5").parse()?,
-                command_timeout: Self::get_env("REDIS_COMMAND_TIMEOUT", "5").parse()?,
+                max_connections: Self::get_env("REDIS_MAX_CONNECTIONS", "20".to_string()).parse()?,
+                connection_timeout: Self::get_env("REDIS_CONNECTION_TIMEOUT", "5".to_string()).parse()?,
+                command_timeout: Self::get_env("REDIS_COMMAND_TIMEOUT", "5".to_string()).parse()?,
             },
             minio: MinioConfig {
                 endpoint: Self::get_env("MINIO_ENDPOINT", "localhost:9000".to_string()),
@@ -111,28 +111,28 @@ impl Config {
                 secret_key: Self::get_env("MINIO_SECRET_KEY", "minioadmin".to_string()),
                 bucket: Self::get_env("MINIO_BUCKET", "claude-sync".to_string()),
                 region: Self::get_env("MINIO_REGION", "us-east-1".to_string()),
-                timeout: Self::get_env("MINIO_TIMEOUT", "30").parse()?,
+                timeout: Self::get_env("MINIO_TIMEOUT", "30".to_string()).parse()?,
             },
             jwt: JwtConfig {
                 secret: Self::get_env("JWT_SECRET", "your-secret-key-change-it".to_string()),
                 access_token_expiration: Self::get_env(
                     "JWT_ACCESS_TOKEN_EXPIRATION",
-                    "3600",
+                    "3600".to_string(),
                 )
                 .parse()?,
                 refresh_token_expiration: Self::get_env(
                     "JWT_REFRESH_TOKEN_EXPIRATION",
-                    "2592000",
+                    "2592000".to_string(),
                 )
                 .parse()?,
                 issuer: Self::get_env("JWT_ISSUER", "claude-sync".to_string()),
             },
             sync: SyncConfig {
-                max_file_size: Self::get_env("MAX_FILE_SIZE", "104857600").parse()?, // 100MB
-                chunk_size: Self::get_env("CHUNK_SIZE", "4194304").parse()?   // 4MB
-                compression_enabled: Self::get_env("COMPRESSION_ENABLED", "true").parse()?,
-                version_retention_days: Self::get_env("VERSION_RETENTION_DAYS", "90").parse()?,
-                max_versions_per_file: Self::get_env("MAX_VERSIONS_PER_FILE", "100").parse()?,
+                max_file_size: Self::get_env("MAX_FILE_SIZE", "104857600".to_string()).parse()?, // 100MB
+                chunk_size: Self::get_env("CHUNK_SIZE", "4194304".to_string()).parse()?, // 4MB
+                compression_enabled: Self::get_env("COMPRESSION_ENABLED", "true".to_string()).parse()?,
+                version_retention_days: Self::get_env("VERSION_RETENTION_DAYS", "90".to_string()).parse()?,
+                max_versions_per_file: Self::get_env("MAX_VERSIONS_PER_FILE", "100".to_string()).parse()?,
             },
             logging: LoggingConfig {
                 level: Self::get_env("RUST_LOG", "info".to_string()),

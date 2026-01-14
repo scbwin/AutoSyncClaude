@@ -10,6 +10,7 @@ use tracing::{debug, error, info};
 use uuid::Uuid;
 
 /// MinIO/S3 对象存储服务
+#[derive(Clone)]
 pub struct StorageService {
     client: S3Client,
     bucket: String,
@@ -265,7 +266,7 @@ impl ChunkedUpload {
         storage: StorageService,
         user_id: &Uuid,
         file_hash: &str,
-        file_size: i64,
+        _file_size: i64,
     ) -> Result<Self> {
         // TODO: 实现分块上传初始化
         Ok(Self {

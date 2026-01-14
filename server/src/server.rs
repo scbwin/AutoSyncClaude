@@ -5,9 +5,7 @@ use crate::grpc::{AuthGrpcService, DeviceGrpcService, FileSyncGrpcService, Notif
 use crate::storage::StorageService;
 use anyhow::Result;
 use std::net::SocketAddr;
-use tokio::signal;
-use tonic::transport::Server;
-use tracing::{error, info, warn};
+use tracing::info;
 
 /// gRPC 服务器
 pub struct GrpcServer {
@@ -15,7 +13,7 @@ pub struct GrpcServer {
     pool: DbPool,
     cache: Cache,
     storage: StorageService,
-    redis_pool: cache::RedisPool,
+    redis_pool: RedisPool,
 }
 
 impl GrpcServer {
@@ -25,7 +23,7 @@ impl GrpcServer {
         let pool = DbPool::from_config(&config).await?;
 
         // 连接 Redis
-        let redis_pool = RedisPool::from_config(&config).await?;
+        let redis_pool = RedisPool::from_config(&config.redis.url).await?;
         let cache = Cache::new(redis_pool.inner().clone());
 
         // 连接 MinIO

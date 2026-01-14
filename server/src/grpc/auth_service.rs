@@ -1,10 +1,7 @@
-use crate::auth::{AuthService, LoginResult, TokenResponse};
+use crate::auth::AuthService;
 use crate::cache::Cache;
 use crate::config::Config;
 use crate::db::DbPool;
-use anyhow::Result;
-use tokio_stream::wrappers::ReceiverStream;
-use tonic::{Request, Response, Status};
 
 // 生成的 gRPC 代码（将在构建 protobuf 后生成）
 // 这里先定义占位符结构
