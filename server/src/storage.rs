@@ -94,7 +94,7 @@ impl StorageService {
 
         let response = self.bucket.get_object(&storage_path.full_path()).await
             .map_err(|e| anyhow::anyhow!("Failed to download file: {}", e))?;
-        let data = response.bytes.to_vec();
+        let data = response.bytes().to_vec();
 
         debug!("✓ File downloaded successfully: {} bytes", data.len());
 
