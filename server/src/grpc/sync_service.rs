@@ -4,6 +4,24 @@ use crate::storage::StorageService;
 use tracing::{debug, error};
 use uuid::Uuid;
 
+// TODO: 这些类型应该从 protobuf 生成的代码中导入
+// 当前的定义是临时占位符
+#[derive(Debug, Clone)]
+pub struct FileInfo {
+    pub file_path: String,
+    pub file_hash: String,
+    pub file_size: u64,
+    pub modified_time: i64,
+    pub change_type: ChangeType,
+}
+
+#[derive(Debug, Clone)]
+pub enum FileChangeResult {
+    Success,
+    Conflict(String),
+    NeedsUpload(String),
+}
+
 /// FileSyncService gRPC 实现
 pub struct FileSyncGrpcService {
     pool: DbPool,
@@ -513,15 +531,6 @@ impl FileSyncGrpcService {
     // - resolve_conflict_* (各种解决策略)
     // - get_file_versions
     // - create_restored_version
-}
-
-// ===== 辅助类型 =====
-
-#[derive(Debug)]
-enum FileChangeResult {
-    Success,
-    Conflict(String),
-    NeedsUpload(String),
 }
 
 // ===== 常量 =====

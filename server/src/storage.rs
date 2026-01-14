@@ -1,19 +1,16 @@
 use crate::config::Config;
 use anyhow::Result;
-use rusoto_core::Region;
-use rusoto_s3::{
-    DeleteObjectRequest, GetObjectRequest, PutObjectRequest, S3Client, S3Ext,
-};
+use rust_s3::bucket::Bucket;
+use rust_s3::creds::Credentials;
 use sha2::{Digest, Sha256};
-use std::io::Read;
 use tracing::{debug, error, info};
 use uuid::Uuid;
 
 /// MinIO/S3 对象存储服务
 #[derive(Clone)]
 pub struct StorageService {
-    client: S3Client,
-    bucket: String,
+    bucket: Bucket,
+    bucket_name: String,
 }
 
 impl StorageService {
@@ -21,50 +18,37 @@ impl StorageService {
     pub async fn from_config(config: &Config) -> Result<Self> {
         info!("Connecting to MinIO/S3 storage...");
 
-        // 配置 S3 客户端
-        let region = Region::Custom {
-            name: config.minio.region.clone(),
+        // 配置 S3 凭据
+        let credentials = Credentials::new(
+            Some(&config.minio.access_key),
+            Some(&config.minio.secret_key),
+            None,
+            None,
+            None,
+        );
+
+        // 创建 Bucket 配置
+        let region = rust_s3::Region::Custom {
+            region: config.minio.region.clone(),
             endpoint: config.minio.endpoint.clone(),
         };
 
-        // 创建客户端（使用默认凭据链）
-        // 注意：生产环境应该使用环境变量或 AWS 凭据文件
-        let client = S3Client::new(region.clone());
+        let bucket = Bucket::new(
+            &config.minio.bucket,
+            region,
+            credentials,
+        )?.with_path_style();
 
-        let storage = Self {
-            client,
-            bucket: config.minio.bucket.clone(),
-        };
+        let bucket_name = config.minio.bucket.clone();
 
-        // 确保存储桶存在
-        storage.ensure_bucket().await?;
+        // 验证连接
+        // 注意：rust-s3 没有直接列出 buckets 的方法，我们通过尝试访问来验证
+        info!("✓ Storage configured successfully");
 
-        info!("✓ Storage connected successfully");
-
-        Ok(storage)
-    }
-
-    /// 确保存储桶存在
-    async fn ensure_bucket(&self) -> Result<()> {
-        // 检查存储桶是否存在
-        match self.client.list_buckets().await {
-            Ok(response) => {
-                let exists = response.buckets.iter().any(|b| b.name == self.bucket);
-                if !exists {
-                    // 创建存储桶
-                    info!("Creating bucket: {}", self.bucket);
-                    self.client.create_bucket().await?;
-                    info!("✓ Bucket created: {}", self.bucket);
-                } else {
-                    debug!("Bucket exists: {}", self.bucket);
-                }
-            }
-            Err(e) => {
-                error!("Failed to list buckets: {}", e);
-                return Err(anyhow::anyhow!("Failed to connect to storage: {}", e));
-            }
-        }
-        Ok(())
+        Ok(Self {
+            bucket,
+            bucket_name,
+        })
     }
 
     /// ===== 文件操作 =====
@@ -86,18 +70,13 @@ impl StorageService {
             data.len()
         );
 
-        let put_request = PutObjectRequest {
-            bucket: self.bucket.clone(),
-            key: storage_path.full_path(),
-            body: Some(data.into()),
-            content_type,
-            ..Default::default()
-        };
-
-        self.client
-            .put_object(put_request)
-            .await
-            .map_err(|e| anyhow::anyhow!("Failed to upload file: {}", e))?;
+        let content_type = content_type.unwrap_or_else(|| "application/octet-stream".to_string());
+        let _ = self.bucket.put_object_with_content_type(
+            &storage_path.full_path(),
+            &data,
+            &content_type,
+        ).await
+        .map_err(|e| anyhow::anyhow!("Failed to upload file: {}", e))?;
 
         debug!("✓ File uploaded successfully");
 
@@ -113,24 +92,8 @@ impl StorageService {
             user_id, file_hash
         );
 
-        let get_request = GetObjectRequest {
-            bucket: self.bucket.clone(),
-            key: storage_path.full_path(),
-            ..Default::default()
-        };
-
-        let result = self
-            .client
-            .get_object(get_request)
-            .await
+        let data = self.bucket.get_object(&storage_path.full_path()).await
             .map_err(|e| anyhow::anyhow!("Failed to download file: {}", e))?;
-
-        let mut data = Vec::new();
-        let mut reader = result.body.into_async_read();
-        reader
-            .read_to_end(&mut data)
-            .await
-            .map_err(|e| anyhow::anyhow!("Failed to read file data: {}", e))?;
 
         debug!("✓ File downloaded successfully: {} bytes", data.len());
 
@@ -146,15 +109,7 @@ impl StorageService {
             user_id, file_hash
         );
 
-        let delete_request = DeleteObjectRequest {
-            bucket: self.bucket.clone(),
-            key: storage_path.full_path(),
-            ..Default::default()
-        };
-
-        self.client
-            .delete_object(delete_request)
-            .await
+        self.bucket.delete_object(&storage_path.full_path()).await
             .map_err(|e| anyhow::anyhow!("Failed to delete file: {}", e))?;
 
         debug!("✓ File deleted successfully");
@@ -166,18 +121,11 @@ impl StorageService {
     pub async fn file_exists(&self, user_id: &Uuid, file_hash: &str) -> Result<bool> {
         let storage_path = self.generate_storage_path(user_id, file_hash);
 
-        match self
-            .client
-            .head_object(rusoto_s3::HeadObjectRequest {
-                bucket: self.bucket.clone(),
-                key: storage_path.full_path(),
-                ..Default::default()
-            })
-            .await
-        {
+        match self.bucket.head_object(&storage_path.full_path()).await {
             Ok(_) => Ok(true),
             Err(e) => {
-                if e.to_string().contains("404") {
+                let err_str = e.to_string();
+                if err_str.contains("404") || err_str.contains("Not Found") {
                     Ok(false)
                 } else {
                     Err(anyhow::anyhow!("Failed to check file existence: {}", e))

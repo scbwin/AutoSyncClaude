@@ -227,9 +227,7 @@ impl AuthService {
         self.cache.revoke_token(&jti, expires_at).await?;
         Ok(())
     }
-
     /// ===== 内部辅助方法 =====
-
     /// 生成 Access Token 和 Refresh Token
     fn generate_tokens(&self, user_id: Uuid, device_id: Option<Uuid>) -> Result<(String, String)> {
         let access_token = self.generate_token(user_id, device_id, TokenType::Access)?;

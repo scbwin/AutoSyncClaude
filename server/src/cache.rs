@@ -62,9 +62,7 @@ impl Cache {
     pub fn new(pool: Pool) -> Self {
         Self { pool }
     }
-
     /// ===== Token 黑名单操作 =====
-
     /// 将 Token 加入黑名单
     pub async fn revoke_token(&self, jti: &uuid::Uuid, expires_at: i64) -> Result<()> {
         let key = format!("token:blacklist:{}", jti);
@@ -84,9 +82,7 @@ impl Cache {
         let exists: bool = conn.exists(&key).await?;
         Ok(exists)
     }
-
     /// ===== 在线设备管理 =====
-
     /// 设备上线
     pub async fn device_online(&self, device_id: &uuid::Uuid, user_id: &uuid::Uuid) -> Result<()> {
         let key = format!("device:online:{}", user_id);
@@ -135,9 +131,7 @@ impl Cache {
 
         Ok(is_member)
     }
-
     /// ===== 变更通知队列 =====
-
     /// 添加文件变更到队列
     pub async fn push_file_change(
         &self,
@@ -179,9 +173,7 @@ impl Cache {
 
         Ok(changes)
     }
-
     /// ===== 通用缓存操作 =====
-
     /// 设置缓存
     pub async fn set(
         &self,
@@ -238,9 +230,7 @@ impl Cache {
         conn.del::<_, ()>(keys).await?;
         Ok(())
     }
-
     /// ===== 计数器操作 =====
-
     /// 增加计数器
     pub async fn incr(&self, key: &str) -> Result<i64> {
         let mut conn = self.pool.get().await?;

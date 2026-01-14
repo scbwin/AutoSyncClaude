@@ -12,7 +12,6 @@ use anyhow::Result;
 use server::GrpcServer;
 use std::sync::Arc;
 use tracing::{error, info, Level};
-use tracing_subscriber;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -50,13 +49,14 @@ async fn main() -> Result<()> {
         Arc::new(storage.clone()),
     );
 
+    let health_addr_for_log = health_check_addr.clone();
     tokio::spawn(async move {
         if let Err(e) = health_service.serve(health_check_addr).await {
             error!("Health check server error: {}", e);
         }
     });
 
-    info!("✓ Health check server started on {}", health_check_addr);
+    info!("✓ Health check server started on {}", health_addr_for_log);
 
     // TODO: 取消注释下面的代码（需要等待 protobuf 生成）
     /*

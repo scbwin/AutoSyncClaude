@@ -60,21 +60,21 @@ impl GrpcServer {
         info!("🚀 Starting gRPC server on {}", addr);
 
         // 创建 gRPC 服务实例
-        let auth_service = AuthGrpcService::new(
+        let _auth_service = AuthGrpcService::new(
             self.pool.clone(),
             self.cache.clone(),
             self.config.clone(),
         );
 
-        let device_service = DeviceGrpcService::new(self.pool.clone());
+        let _device_service = DeviceGrpcService::new(self.pool.clone());
 
-        let sync_service = FileSyncGrpcService::new(
+        let _sync_service = FileSyncGrpcService::new(
             self.pool.clone(),
             self.cache.clone(),
             self.storage,
         );
 
-        let notification_service = NotificationGrpcService::new(self.pool, self.cache);
+        let _notification_service = NotificationGrpcService::new(self.pool, self.cache);
 
         // TODO: 取消注释下面的代码（需要等待 protobuf 生成）
         /*

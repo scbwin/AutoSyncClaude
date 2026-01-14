@@ -3,6 +3,8 @@ use sqlx::postgres::PgPoolOptions;
 use std::time::Duration;
 use tracing::info;
 
+use crate::config::Config;
+
 /// 数据库连接池
 #[derive(Clone)]
 pub struct DbPool {
