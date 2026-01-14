@@ -97,7 +97,7 @@ jobs:
     - name: Install protoc (Windows)
       if: runner.os == 'Windows'
       run: |
-        choco install protobuf
+        choco install protoc -y
         echo "$env:ProgramFiles\protobuf" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
     - name: Install Rust toolchain
