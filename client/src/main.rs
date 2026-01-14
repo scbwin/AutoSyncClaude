@@ -16,18 +16,13 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use config::ClientConfig;
 use conflict::{ConflictResolver, ResolutionStrategy};
-use connection_pool::{ConnectionPoolManager, PoolConfig};
-use error::ClientError;
 use indicatif::{ProgressBar, ProgressStyle};
-use monitoring::{MonitoringManager, OperationTimer};
-use network::{NetworkRecoveryManager, NetworkStatus};
-use retry::{RetryConfig, RetryExecutor};
+use monitoring::MonitoringManager;
 use rules::RuleEngine;
 use std::sync::Arc;
 use sync::SyncEngine;
 use token::TokenManager;
-use tracing::{error, info, warn, Level};
-use tracing_subscriber;
+use tracing::{info, Level};
 use transfer::TransferManager;
 use uuid::Uuid;
 
@@ -259,7 +254,7 @@ async fn handle_login(
     });
 
     // 创建 gRPC 客户端
-    let mut client = grpc_client::GrpcClient::new(config.server.address.clone()).await?;
+    let client = grpc_client::GrpcClient::new(config.server.address.clone()).await?;
 
     // 调用登录 API
     let response = client
@@ -320,7 +315,7 @@ async fn handle_logout() -> Result<()> {
 }
 
 /// 处理同步
-async fn handle_sync(mode: String, daemon: bool, verbose: bool) -> Result<()> {
+async fn handle_sync(mode: String, daemon: bool, _verbose: bool) -> Result<()> {
     info!("开始同步 (模式: {})", mode);
 
     // 加载配置

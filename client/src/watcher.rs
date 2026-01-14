@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
 use notify::{Event, EventKind, RecursiveMode, Watcher};
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
@@ -97,7 +97,7 @@ impl FileWatcher {
         let mut watcher = recommended_watcher(move |res: notify::Result<Event>| {
             if let Ok(event) = res {
                 // 使用 try_lock 避免在同步上下文中阻塞
-                if let Ok(dedup) = deduplicator_clone.try_lock() {
+                if let Ok(_dedup) = deduplicator_clone.try_lock() {
                     // 注意：这里需要处理不可变引用，因为 try_lock 返回的是 MutexGuard
                     // 但 handle_event 需要 &mut self
                     // 这是一个临时解决方案，实际需要重构 EventDeduplicator
@@ -227,10 +227,10 @@ impl EventDeduplicator {
 
     /// 检查是否应该处理此事件
     fn should_process_event(&self, event: &Event) -> bool {
-        match &event.kind {
-            EventKind::Create(_) | EventKind::Modify(_) | EventKind::Remove(_) => true,
-            _ => false,
-        }
+        matches!(
+            &event.kind,
+            EventKind::Create(_) | EventKind::Modify(_) | EventKind::Remove(_)
+        )
     }
 
     /// 转换事件类型

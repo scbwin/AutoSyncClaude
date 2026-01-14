@@ -1,7 +1,7 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result};
 use serde_json::Value as JsonValue;
 use std::path::Path;
-use tracing::{debug, info, warn};
+use tracing::info;
 
 /// 冲突类型
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -146,10 +146,10 @@ impl ConflictResolver {
     /// 解决 ModifyDelete 冲突
     fn resolve_modify_delete(
         &self,
-        path: &Path,
+        _path: &Path,
         local_content: &str,
         remote_content: &str,
-        conflict_type: ConflictType,
+        _conflict_type: ConflictType,
     ) -> Result<MergeResult> {
         match self.default_strategy {
             ResolutionStrategy::KeepLocal => Ok(MergeResult::Merged(local_content.to_string())),

@@ -4,7 +4,7 @@ use serde::Serialize;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
-use tracing::{debug, error, info, span, warn, Level};
+use tracing::{debug, info, span, warn, Level};
 
 /// 性能指标
 #[derive(Debug, Clone, Serialize)]
@@ -309,7 +309,7 @@ impl MonitoringManager {
         for metric in &metrics {
             grouped_metrics
                 .entry(metric.name.clone())
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(metric);
         }
 

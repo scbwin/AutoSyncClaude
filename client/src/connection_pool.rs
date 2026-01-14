@@ -4,7 +4,6 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::{Mutex, RwLock, Semaphore};
 use tonic::transport::Channel;
-use tower::util::ServiceExt;
 use tracing::{debug, info};
 
 /// 连接池配置

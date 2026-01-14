@@ -1,5 +1,4 @@
 use anyhow::{Context, Result};
-use std::sync::Arc;
 use tonic::transport::Channel;
 use tracing::{debug, info};
 use uuid::Uuid;
@@ -47,8 +46,8 @@ impl GrpcClient {
     pub async fn register(
         &self,
         email: String,
-        username: String,
-        password: String,
+        _username: String,
+        _password: String,
     ) -> Result<RegisterResponse> {
         debug!("用户注册: {}", email);
 
@@ -66,9 +65,9 @@ impl GrpcClient {
     pub async fn login(
         &self,
         email: String,
-        password: String,
-        device_name: String,
-        device_type: String,
+        _password: String,
+        _device_name: String,
+        _device_type: String,
     ) -> Result<LoginResponse> {
         debug!("用户登录: {}", email);
 
@@ -86,7 +85,7 @@ impl GrpcClient {
 
     /// 刷新 Token
     #[allow(dead_code)]
-    pub async fn refresh_token(&self, refresh_token: String) -> Result<TokenRefreshResponse> {
+    pub async fn refresh_token(&self, _refresh_token: String) -> Result<TokenRefreshResponse> {
         debug!("刷新 Token");
 
         // TODO: 实现 AuthService.RefreshToken RPC 调用
@@ -114,8 +113,8 @@ impl GrpcClient {
     pub async fn register_device(
         &self,
         name: String,
-        device_type: String,
-        fingerprint: String,
+        _device_type: String,
+        _fingerprint: String,
     ) -> Result<DeviceResponse> {
         debug!("注册设备: {}", name);
 
@@ -175,9 +174,9 @@ impl GrpcClient {
     pub async fn upload_file(
         &self,
         file_path: String,
-        file_hash: String,
+        _file_hash: String,
         file_size: u64,
-        content: Vec<u8>,
+        _content: Vec<u8>,
     ) -> Result<UploadFileResponse> {
         debug!("上传文件: {:?}, 大小: {} 字节", file_path, file_size);
 
@@ -197,7 +196,7 @@ impl GrpcClient {
     pub async fn download_file(
         &self,
         file_path: String,
-        version_number: Option<i64>,
+        _version_number: Option<i64>,
     ) -> Result<DownloadFileData> {
         debug!("下载文件: {:?}", file_path);
 

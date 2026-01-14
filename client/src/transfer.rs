@@ -4,9 +4,8 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::sync::Semaphore;
-use tracing::{debug, info, warn};
+use tracing::{debug, info};
 use uuid::Uuid;
 
 /// 文件传输进度
@@ -205,7 +204,7 @@ impl TransferManager {
         }
 
         // 分块上传
-        let total_chunks = (file_content.len() + self.chunk_size - 1) / self.chunk_size;
+        let total_chunks = file_content.len().div_ceil(self.chunk_size);
 
         for (i, chunk) in file_content.chunks(self.chunk_size).enumerate() {
             // TODO: 实际上传到服务器的逻辑

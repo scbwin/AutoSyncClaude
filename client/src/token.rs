@@ -1,9 +1,9 @@
 use anyhow::{Context, Result};
 use chrono::{Duration, Utc};
-use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
+use jsonwebtoken::{decode, DecodingKey, Validation};
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use tracing::{debug, info, warn};
 use uuid::Uuid;
 
@@ -249,7 +249,7 @@ impl TokenManager {
     fn encrypt(&self, plaintext: &str, key: &str) -> Result<String> {
         use aes_gcm::{
             aead::{Aead, AeadCore, KeyInit, OsRng},
-            Aes256Gcm, Nonce,
+            Aes256Gcm,
         };
 
         // 从密钥派生 32 字节密钥
@@ -276,7 +276,7 @@ impl TokenManager {
     fn decrypt(&self, ciphertext: &str, key: &str) -> Result<String> {
         use aes_gcm::{
             aead::{Aead, KeyInit},
-            Aes256Gcm, Nonce,
+            Aes256Gcm,
         };
 
         // Base64 解码

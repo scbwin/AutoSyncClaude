@@ -1,16 +1,16 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use tracing::{debug, error, info, warn};
 
 use crate::config::ClientConfig;
-use crate::conflict::{ConflictResolver, ConflictType, ResolutionStrategy};
+use crate::conflict::{ConflictResolver, ConflictType};
 use crate::rules::RuleEngine;
-use crate::transfer::{TransferManager, TransferProgress};
+use crate::transfer::TransferManager;
 use crate::watcher::{FileEvent, FileEventType, FileScanner};
 
 /// 同步状态
