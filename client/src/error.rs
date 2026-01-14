@@ -383,6 +383,9 @@ impl From<tonic::Status> for ClientError {
     }
 }
 
+/// 客户端 Result 类型别名
+pub type Result<T> = std::result::Result<T, ClientError>;
+
 #[cfg(test)]
 mod tests {
     use super::*;

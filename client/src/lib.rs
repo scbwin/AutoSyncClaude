@@ -15,6 +15,6 @@ pub mod transfer;
 pub mod watcher;
 
 // 重新导出常用类型
-pub use error::{Error, Result};
+pub use error::{ClientError, Result};
 pub use grpc_client::GrpcClient;
-pub use sync::{SyncEngine, SyncOptions};
+pub use sync::{SyncEngine, SyncMode, SyncStatus};
