@@ -1,6 +1,6 @@
 # 🎯 GUI 客户端构建 - 完整修复清单
 
-## ✅ 所有 10 个问题已修复
+## ✅ 所有 11 个问题已修复
 
 ### 修复历史
 
@@ -11,11 +11,12 @@
 | 3 | Ubuntu webkit 包名 | Linux | 7303e12 | ✅ |
 | 4 | 添加 GTK3 依赖 | Linux | d129985 | ✅ |
 | 5 | 无限构建循环 | 全部 | ebc0d4f | ✅ |
-| 6 | 图标配置错误 | 全部 | c2db581 | ✅ |
+| 6 | 图标配置为空 | 全部 | c2db581 | ✅ |
 | 7 | macOS 构建目标 | macOS | dece5f2 | ✅ |
 | 8 | libsoup 依赖缺失 | Linux | 39ed314 | ✅ |
 | 9 | javascriptcoregtk 兼容性 | Linux | 2787d19 | ✅ |
 | 10 | tracing 依赖缺失 | 全部 | b5d8cec | ✅ |
+| 11 | 图标文件缺失 | 全部 | 5ce7a2e | ✅ |
 
 ---
 
@@ -253,17 +254,75 @@ tracing-subscriber = "0.3"
 
 ---
 
+### 1️⃣1️⃣ 图标文件缺失 ✅
+**提交**: `5ce7a2e`
+
+**问题**: Tauri 编译时需要 `icons/icon.png` 文件，但文件不存在
+
+**错误信息**:
+```
+error: proc macro panicked
+  --> src/main.rs:52:14
+   |
+52 |     .run(tauri::generate_context!())
+   |          ^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = help: message: failed to read icon /path/to/icons/icon.png:
+   No such file or directory (os error 2)
+```
+
+**原因**:
+- 之前在 `tauri.conf.json` 中设置了 `"icon": []`
+- Tauri 仍然默认查找 `icons/icon.png` 文件
+- 编译时的 `tauri::generate_context!()` 宏需要读取图标文件
+
+**修复**:
+在 GitHub Actions workflow 中添加图标生成步骤：
+
+```yaml
+- name: Generate default icon (Linux)
+  if: runner.os == 'Linux'
+  run: |
+    # Install ImageMagick for icon generation
+    sudo apt-get install -y imagemagick
+
+    # Create a simple 512x512 icon
+    cd gui-client/src-tauri/icons
+    convert -size 512x512 xc:'#1e1e1e' \
+      -fill '#6495ED' -draw 'circle 256,256 256,76' \
+      -fill '#1e1e1e' -draw 'circle 256,256 256,116' \
+      -fill white -pointsize 240 -font DejaVu-Sans -gravity center -annotate +0+0 'C' \
+      icon.png
+
+- name: Generate default icon (Windows/macOS)
+  if: runner.os != 'Linux'
+  run: |
+    # Fallback for Windows/macOS
+    cd gui-client/src-tauri/icons
+    if [ ! -f icon.png ]; then
+      echo "iVBORw0KG..." | base64 -d > icon.png
+    fi
+```
+
+**说明**:
+- 在构建前动态生成图标文件
+- Linux 使用 ImageMagick 创建高质量图标
+- Windows/macOS 使用预编码的 base64 PNG 作为后备
+- 图标设计：深色背景，蓝色圆圈，白色字母 "C"
+
+---
+
 ## 📊 修复统计
 
 ### 按平台分类
-- **全部平台**: 5 个修复（1, 2, 5, 6, 10）
+- **全部平台**: 6 个修复（1, 2, 5, 6, 10, 11）
 - **Linux**: 4 个修复（3, 4, 8, 9）
 - **macOS**: 1 个修复（7）
 
 ### 按类型分类
 - **Rust 代码**: 2 个（1, 2）
 - **依赖配置**: 6 个（3, 4, 7, 8, 9, 10）
-- **构建配置**: 2 个（5, 6）
+- **构建配置**: 3 个（5, 6, 11）
 
 ### 总代码变更
 - **文件修改**: 15+ 个
@@ -337,6 +396,6 @@ tracing-subscriber = "0.3"
 
 ---
 
-*最后更新: 提交 b5d8cec*
-*总修复数: 10 个*
-*文档版本: 1.2*
+*最后更新: 提交 5ce7a2e*
+*总修复数: 11 个*
+*文档版本: 1.3*
