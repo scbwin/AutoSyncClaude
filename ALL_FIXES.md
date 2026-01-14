@@ -1,6 +1,6 @@
 # 🎯 GUI 客户端构建 - 完整修复清单
 
-## ✅ 所有 8 个问题已修复
+## ✅ 所有 9 个问题已修复
 
 ### 修复历史
 
@@ -14,6 +14,7 @@
 | 6 | 图标配置错误 | 全部 | c2db581 | ✅ |
 | 7 | macOS 构建目标 | macOS | dece5f2 | ✅ |
 | 8 | libsoup 依赖缺失 | Linux | 39ed314 | ✅ |
+| 9 | javascriptcoregtk 兼容性 | Linux | 2787d19 | ✅ |
 
 ---
 
@@ -178,16 +179,55 @@ sudo apt-get install libsoup2.4-dev
 
 ---
 
+### 9️⃣ javascriptcoregtk 版本兼容性 ✅
+**提交**: `2787d19`
+
+**问题**: `javascriptcore-rs-sys` 查找 `javascriptcoregtk-4.0`，但 Ubuntu 22.04 只有 `4.1` 版本
+
+**错误信息**:
+```
+The system library `javascriptcoregtk-4.0` required by crate `javascriptcore-rs-sys` was not found.
+The file `javascriptcoregtk-4.0.pc` needs to be installed
+```
+
+**原因**:
+- Ubuntu 22.04+ 使用 webkit2gtk-4.1 和 javascriptcoregtk-4.1
+- Tauri 1.6 的依赖 `javascriptcore-rs-sys` 仍在查找 4.0 版本的 pkg-config 文件
+
+**修复**:
+```bash
+# 1. 安装 javascriptcoregtk-4.1-dev
+sudo apt-get install libjavascriptcoregtk-4.1-dev
+
+# 2. 创建兼容性符号链接
+sudo ln -sf /usr/lib/x86_64-linux-gnu/pkgconfig/javascriptcoregtk-4.1.pc \
+            /usr/lib/x86_64-linux-gnu/pkgconfig/javascriptcoregtk-4.0.pc
+sudo ln -sf /usr/lib/x86_64-linux-gnu/pkgconfig/webkit2gtk-4.1.pc \
+            /usr/lib/x86_64-linux-gnu/pkgconfig/webkit2gtk-4.0.pc
+
+# 3. 设置 PKG_CONFIG_PATH
+export PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig:$PKG_CONFIG_PATH
+export PKG_CONFIG_ALLOW_SYSTEM_CFLAGS=1
+```
+
+**验证**:
+```bash
+pkg-config --exists javascriptcoregtk-4.0 && echo "✓ 兼容性链接正常"
+pkg-config --exists webkit2gtk-4.0 && echo "✓ webkit2gtk 兼容性正常"
+```
+
+---
+
 ## 📊 修复统计
 
 ### 按平台分类
 - **全部平台**: 4 个修复（1, 2, 5, 6）
-- **Linux**: 3 个修复（3, 4, 8）
+- **Linux**: 4 个修复（3, 4, 8, 9）
 - **macOS**: 1 个修复（7）
 
 ### 按类型分类
 - **Rust 代码**: 2 个（1, 2）
-- **依赖配置**: 4 个（3, 4, 7, 8）
+- **依赖配置**: 5 个（3, 4, 7, 8, 9）
 - **构建配置**: 2 个（5, 6）
 
 ### 总代码变更
@@ -262,6 +302,6 @@ sudo apt-get install libsoup2.4-dev
 
 ---
 
-*最后更新: 提交 b424eb5*
-*总修复数: 8 个*
-*文档版本: 1.0*
+*最后更新: 提交 2787d19*
+*总修复数: 9 个*
+*文档版本: 1.1*
