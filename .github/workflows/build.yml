@@ -238,13 +238,10 @@ jobs:
         include:
           - os: ubuntu-latest
             artifact_name: claude-sync-gui-linux
-            build_args: ''
           - os: windows-latest
             artifact_name: claude-sync-gui-windows
-            build_args: ''
           - os: macos-latest
             artifact_name: claude-sync-gui-macos
-            build_args: '--target universal-apple-darwin'
 
     steps:
     - name: Checkout code
@@ -310,9 +307,11 @@ jobs:
 
     - name: Build GUI client
       working-directory: ./gui-client
-      run: npm run build ${{ matrix.build_args }}
+      run: npm run build
       env:
         TAURI_BUNDLE_LICENSE: MIT
+        # Enable universal builds on macOS
+        TAURI_APPLE_UNIVERSAL_BUILD: "true"
 
     - name: Upload GUI client bundle (Linux)
       if: runner.os == 'Linux'
@@ -340,6 +339,6 @@ jobs:
       with:
         name: ${{ matrix.artifact_name }}
         path: |
-          gui-client/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
-          gui-client/src-tauri/target/universal-apple-darwin/release/bundle/macos/*.app
+          gui-client/src-tauri/target/release/bundle/dmg/*.dmg
+          gui-client/src-tauri/target/release/bundle/macos/*.app
         if-no-files-found: warn
