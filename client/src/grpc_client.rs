@@ -163,7 +163,7 @@ impl GrpcClient {
     pub async fn fetch_changes(
         &self,
         since_version: i64,
-        file_patterns: Vec<String>,
+        _file_patterns: Vec<String>,
     ) -> Result<Vec<FileChange>> {
         debug!("获取远程变更，版本: {}", since_version);
 
@@ -220,14 +220,14 @@ impl GrpcClient {
     #[allow(dead_code)]
     pub async fn subscribe_changes(
         &self,
-        file_patterns: Vec<String>,
+        _file_patterns: Vec<String>,
     ) -> Result<tokio::sync::mpsc::Receiver<ChangeNotification>> {
         debug!("订阅文件变更通知");
 
         // TODO: 实现 NotificationService.SubscribeChanges RPC 调用
         // 需要等待 protobuf 代码生成
 
-        let (tx, rx) = tokio::sync::mpsc::channel(100);
+        let (_tx, rx) = tokio::sync::mpsc::channel(100);
         Ok(rx)
     }
 

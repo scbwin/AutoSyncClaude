@@ -267,7 +267,7 @@ impl NetworkRecoveryManager {
     /// 处理单个离线操作
     async fn process_operation(&self, operation: OfflineOperation) -> Result<(), ClientError> {
         match operation {
-            OfflineOperation::FileUpload { path, hash, size } => {
+            OfflineOperation::FileUpload { path, hash: _, size: _ } => {
                 info!("处理离线上传: {}", path);
                 // TODO: 实现实际的上传逻辑
                 Ok(())

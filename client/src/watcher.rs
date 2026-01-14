@@ -4,7 +4,7 @@ use notify::{Event, EventKind, RecursiveMode, Watcher};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tokio::sync::mpsc;
 use tracing::{debug, info, warn};
@@ -83,18 +83,22 @@ impl FileWatcher {
     pub fn spawn(self) -> Result<tokio::task::JoinHandle<()>> {
         use notify::recommended_watcher;
 
-        // 创建事件去重器
-        let deduplicator = EventDeduplicator::new(
+        // 创建事件去重器，使用 Arc<Mutex<>> 包装以支持共享可变访问
+        let deduplicator = Arc::new(Mutex::new(EventDeduplicator::new(
             self.debounce_delay,
             self.batch_window,
             self.event_tx.clone(),
-        );
+        )));
+
+        let deduplicator_clone = deduplicator.clone();
 
         // 创建 notify watcher
         let mut watcher = recommended_watcher(move |res: notify::Result<Event>| {
             if let Ok(event) = res {
-                if let Err(e) = deduplicator.handle_event(event) {
-                    warn!("处理文件事件失败: {}", e);
+                if let Ok(mut dedup) = deduplicator_clone.lock() {
+                    if let Err(e) = dedup.handle_event(event) {
+                        warn!("处理文件事件失败: {}", e);
+                    }
                 }
             }
         })
@@ -108,7 +112,7 @@ impl FileWatcher {
         info!("开始监控目录: {:?}", self.watch_dir);
 
         // 启动去重器的批处理任务
-        let handle = deduplicator.spawn_batch_processor();
+        let handle = EventDeduplicator::spawn_batch_processor_wrapper(deduplicator);
 
         Ok(handle)
     }
@@ -264,7 +268,7 @@ impl EventDeduplicator {
     }
 
     /// 创建防抖定时器
-    fn spawn_debounce_timer(&self, path: PathBuf, event: FileEvent) -> tokio::task::JoinHandle<()> {
+    fn spawn_debounce_timer(&self, _path: PathBuf, event: FileEvent) -> tokio::task::JoinHandle<()> {
         let delay = Duration::from_millis(self.debounce_delay);
         let event_tx = self.event_tx.clone();
 
@@ -274,6 +278,27 @@ impl EventDeduplicator {
             // 防抖延迟后发送事件
             if let Err(e) = event_tx.send(event) {
                 warn!("发送文件事件失败: {}", e);
+            }
+        })
+    }
+
+    /// 启动批处理器（包装 Arc<Mutex<>>）
+    fn spawn_batch_processor_wrapper(deduplicator: Arc<Mutex<EventDeduplicator>>) -> tokio::task::JoinHandle<()> {
+        tokio::spawn(async move {
+            let batch_window = {
+                let dedup = deduplicator.lock().unwrap();
+                dedup.batch_window
+            };
+
+            let mut interval = tokio::time::interval(Duration::from_secs(batch_window));
+
+            loop {
+                interval.tick().await;
+
+                // 批量发送待处理的事件
+                if let Ok(mut dedup) = deduplicator.lock() {
+                    dedup.flush_batch().await;
+                }
             }
         })
     }
