@@ -67,6 +67,30 @@ libwebkit2gtk-4.1-dev
 
 ---
 
+### 修复 5: macOS 构建目标错误 ✅
+**问题**: `--target universal-apple-darwin` 参数传递给 cargo 导致错误
+
+**修复**: 移除错误的参数，使用环境变量
+```yaml
+# 之前
+build_args: '--target universal-apple-darwin'
+
+# 之后
+env:
+  TAURI_APPLE_UNIVERSAL_BUILD: "true"  # 可选，用于通用二进制
+```
+
+**路径修复**:
+```yaml
+# 之前
+gui-client/src-tauri/target/universal-apple-darwin/release/bundle/
+
+# 之后
+gui-client/src-tauri/target/release/bundle/
+```
+
+---
+
 ### 修复 4: 图标文件缺失 ✅
 **问题**: 配置引用了不存在的图标文件
 
