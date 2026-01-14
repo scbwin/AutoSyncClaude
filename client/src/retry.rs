@@ -307,19 +307,25 @@ mod tests {
 
     #[tokio::test]
     async fn test_retry_executor_retry() {
+        use std::sync::atomic::{AtomicI32, Ordering};
+        use std::sync::Arc;
+
         let config = RetryConfig::new().with_max_retries(3).with_initial_delay_ms(10);
         let executor = RetryExecutor::new(config);
 
-        let mut attempt_count = 0;
+        let attempt_count = Arc::new(AtomicI32::new(0));
 
         let result = executor
             .execute(
-                || async {
-                    attempt_count += 1;
-                    if attempt_count < 3 {
-                        Err(ClientError::network("临时错误", None))
-                    } else {
-                        Ok::<_, ClientError>("success")
+                || {
+                    let counter = attempt_count.clone();
+                    async move {
+                        let count = counter.fetch_add(1, Ordering::SeqCst) + 1;
+                        if count < 3 {
+                            Err(ClientError::network("临时错误", None))
+                        } else {
+                            Ok::<_, ClientError>("success")
+                        }
                     }
                 },
                 "test_operation",
@@ -327,7 +333,7 @@ mod tests {
             .await;
 
         assert!(result.is_ok());
-        assert_eq!(attempt_count, 3);
+        assert_eq!(attempt_count.load(Ordering::SeqCst), 3);
     }
 
     #[tokio::test]
