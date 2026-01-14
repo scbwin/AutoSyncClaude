@@ -341,13 +341,8 @@ jobs:
 
     - name: Generate default icon (Windows/macOS)
       if: runner.os != 'Linux'
-      run: |
-        # For Windows/macOS, just create a simple placeholder if it doesn't exist
-        cd gui-client/src-tauri/icons
-        if [ ! -f icon.png ]; then
-          # Use a base64 encoded minimal PNG (1x1 red pixel as placeholder)
-          echo "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==" | base64 -d > icon.png
-        fi
+      working-directory: ./gui-client
+      run: node generate-icon.js
 
     - name: Build GUI client
       working-directory: ./gui-client
