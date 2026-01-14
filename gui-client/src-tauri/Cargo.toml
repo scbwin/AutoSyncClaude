@@ -19,6 +19,7 @@ anyhow = "1.0"
 dirs = "5.0"
 uuid = { version = "1.6", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
+tracing = "0.1"
 tracing-subscriber = "0.3"
 
 # HTTP 客户端（用于与服务器通信）
