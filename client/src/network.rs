@@ -253,7 +253,7 @@ impl NetworkRecoveryManager {
         info!("处理离线队列中的 {} 个操作", operations.len());
 
         for operation in operations {
-            if let Err(e) = self.process_operation(operation).await {
+            if let Err(e) = self.process_operation(operation.clone()).await {
                 warn!("处理离线操作失败: {}", e.user_message());
 
                 // 将失败的操作重新放回队列

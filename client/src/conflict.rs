@@ -186,7 +186,7 @@ impl ConflictResolver {
 
     /// 三方合并算法
     fn three_way_merge(&self, base: &str, local: &str, remote: &str) -> Result<String> {
-        use similar::{Algorithm, TextDiff};
+        use similar::{Algorithm, Change, TextDiff};
 
         // 生成 base -> local 和 base -> remote 的 diff
         let diff_base_local = TextDiff::configure()
@@ -197,9 +197,9 @@ impl ConflictResolver {
             .algorithm(Algorithm::Patience)
             .diff_lines(base, remote);
 
-        // 检测冲突 - collect Change values instead of references
-        let local_changes: Vec<_> = diff_base_local.iter().cloned().collect();
-        let remote_changes: Vec<_> = diff_base_remote.iter().cloned().collect();
+        // 检测冲突 - 获取所有变更
+        let local_changes: Vec<Change<str>> = diff_base_local.iter().collect::<Vec<_>>();
+        let remote_changes: Vec<Change<str>> = diff_base_remote.iter().collect::<Vec<_>>();
 
         // 简单冲突检测：如果同一位置有不同的修改
         let has_conflict = self.has_overlapping_changes(&local_changes, &remote_changes);
@@ -215,8 +215,8 @@ impl ConflictResolver {
     /// 检查是否有重叠的变更
     fn has_overlapping_changes(
         &self,
-        local_changes: &[similar::Change],
-        remote_changes: &[similar::Change],
+        local_changes: &[similar::Change<str>],
+        remote_changes: &[similar::Change<str>],
     ) -> bool {
         // 简化实现：如果都有删除或插入，则认为有冲突
         let local_has_changes = local_changes

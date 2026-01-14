@@ -1,12 +1,13 @@
 use crate::error::ClientError;
 use chrono::{DateTime, Utc};
+use serde::Serialize;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
 use tracing::{debug, error, info, span, warn, Level};
 
 /// 性能指标
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Metric {
     /// 指标名称
     pub name: String,
@@ -25,7 +26,7 @@ pub struct Metric {
 }
 
 /// 指标类型
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub enum MetricType {
     /// 计数器
     Counter,
@@ -41,7 +42,7 @@ pub enum MetricType {
 }
 
 /// 性能统计
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct PerformanceStats {
     /// 同步总次数
     pub sync_total_count: u64,

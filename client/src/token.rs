@@ -273,7 +273,7 @@ impl TokenManager {
         result.extend_from_slice(&ciphertext);
 
         // Base64 编码
-        Ok(base64::encode(&result))
+        Ok(base64_helper::encode(&result))
     }
 
     /// 解密内容
@@ -284,7 +284,7 @@ impl TokenManager {
         };
 
         // Base64 解码
-        let data = base64::decode(ciphertext).context("Base64 解码失败")?;
+        let data = base64_helper::decode(ciphertext).context("Base64 解码失败")?;
 
         if data.len() < 12 {
             anyhow::bail!("密文太短");
@@ -363,8 +363,8 @@ impl TokenManager {
         }
 
         // 尝试解码 header 和 payload
-        base64::decode(parts[0]).context("Token header 解码失败")?;
-        base64::decode(parts[1]).context("Token payload 解码失败")?;
+        base64_helper::decode(parts[0]).context("Token header 解码失败")?;
+        base64_helper::decode(parts[1]).context("Token payload 解码失败")?;
 
         Ok(())
     }
@@ -372,8 +372,8 @@ impl TokenManager {
 
 // ===== 辅助函数 =====
 
-/// Base64 编码/解码模块
-mod base64 {
+/// Base64 编码/解码辅助函数
+mod base64_helper {
     use anyhow::{Context, Result};
 
     pub fn encode(data: &[u8]) -> String {
