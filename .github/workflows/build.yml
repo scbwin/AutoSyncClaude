@@ -137,9 +137,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: ${{ matrix.artifact_name }}
-        path: |
-          client/target/release/claude-sync-client
-          client/target/release/claude-sync-client.exe
+        path: client/target/release/claude-sync-client*
         if-no-files-found: error
 
   # 生成 protobuf 代码并作为 artifact 下载
