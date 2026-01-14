@@ -368,6 +368,7 @@ pub fn is_config_file(path: &Path) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::PathBuf;
 
     #[test]
     fn test_rule_engine() {

@@ -275,7 +275,7 @@ impl TokenManager {
     /// 解密内容
     fn decrypt(&self, ciphertext: &str, key: &str) -> Result<String> {
         use aes_gcm::{
-            aead::{Aead, AeadCore, KeyInit, OsRng},
+            aead::{Aead, KeyInit},
             Aes256Gcm,
             Nonce,
         };

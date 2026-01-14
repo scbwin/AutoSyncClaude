@@ -318,8 +318,6 @@ pub struct ChangeNotification {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[tokio::test]
     #[ignore]
     async fn test_grpc_client_connection() {
