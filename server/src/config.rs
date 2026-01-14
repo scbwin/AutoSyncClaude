@@ -158,7 +158,7 @@ impl Config {
         }
 
         // 验证端口范围
-        if self.server.port == 0 || self.server.port > 65535 {
+        if self.server.port == 0 {
             return Err(anyhow::anyhow!("Invalid server port: {}", self.server.port));
         }
 

@@ -18,8 +18,8 @@ impl DbPool {
         info!("Connecting to database...");
 
         let pool = PgPoolOptions::new()
-            .max_connections(config.database.max_connections as u32)
-            .min_connections(config.database.min_connections as u32)
+            .max_connections(config.database.max_connections)
+            .min_connections(config.database.min_connections)
             .acquire_timeout(Duration::from_secs(config.database.acquire_timeout))
             .idle_timeout(Duration::from_secs(config.database.idle_timeout))
             .max_lifetime(Duration::from_secs(config.database.max_lifetime))

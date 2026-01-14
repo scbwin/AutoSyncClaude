@@ -48,7 +48,6 @@ impl StorageService {
     }
 
     /// ===== 文件操作 =====
-
     /// 上传文件
     pub async fn upload_file(
         &self,
@@ -129,7 +128,6 @@ impl StorageService {
     }
 
     /// ===== 辅助方法 =====
-
     /// 生成存储路径
     fn generate_storage_path(&self, user_id: &Uuid, file_hash: &str) -> StoragePath {
         StoragePath::new(user_id, file_hash)

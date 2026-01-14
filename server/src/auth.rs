@@ -40,12 +40,18 @@ impl AuthService {
         info!("Registering new user: {}", email);
 
         // 检查邮箱是否已存在
-        if let Some(_) = UserRepository::find_by_email(self.pool.inner(), &email).await? {
+        if UserRepository::find_by_email(self.pool.inner(), &email)
+            .await?
+            .is_some()
+        {
             return Err(anyhow::anyhow!("Email already registered"));
         }
 
         // 检查用户名是否已存在
-        if let Some(_) = UserRepository::find_by_username(self.pool.inner(), &username).await? {
+        if UserRepository::find_by_username(self.pool.inner(), &username)
+            .await?
+            .is_some()
+        {
             return Err(anyhow::anyhow!("Username already taken"));
         }
 
@@ -146,7 +152,7 @@ impl AuthService {
             device_id: device.id,
             access_token,
             refresh_token,
-            expires_at: expires_at.clone(),
+            expires_at: expires_at,
         })
     }
 
