@@ -152,7 +152,7 @@ impl AuthService {
             device_id: device.id,
             access_token,
             refresh_token,
-            expires_at: expires_at,
+            expires_at,
         })
     }
 
