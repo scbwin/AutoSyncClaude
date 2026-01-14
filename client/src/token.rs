@@ -362,9 +362,16 @@ impl TokenManager {
             anyhow::bail!("Token 格式无效");
         }
 
+        // JWT 使用 base64url 编码，需要特殊处理
+        use base64::prelude::*;
+
         // 尝试解码 header 和 payload
-        base64_helper::decode(parts[0]).context("Token header 解码失败")?;
-        base64_helper::decode(parts[1]).context("Token payload 解码失败")?;
+        BASE64_URL_SAFE_NO_PAD
+            .decode(parts[0])
+            .context("Token header 解码失败")?;
+        BASE64_URL_SAFE_NO_PAD
+            .decode(parts[1])
+            .context("Token payload 解码失败")?;
 
         Ok(())
     }
