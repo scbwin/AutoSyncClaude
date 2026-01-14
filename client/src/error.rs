@@ -342,7 +342,7 @@ impl From<std::io::Error> for ClientError {
         Self::File {
             path: "unknown".to_string(),
             message: err.to_string(),
-            source: Some(err.into()),
+            source: Some(err),
         }
     }
 }
