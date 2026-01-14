@@ -1,0 +1,23 @@
+{
+  "name": "claude-sync-gui",
+  "version": "0.1.0",
+  "description": "Claude Sync GUI Client",
+  "main": "src/index.html",
+  "scripts": {
+    "tauri": "tauri",
+    "build": "tauri build",
+    "dev": "tauri dev",
+    "lint": "eslint src/**/*.js",
+    "format": "prettier --write src/**/*.{html,css,js}"
+  },
+  "keywords": [
+    "tauri",
+    "gui",
+    "claude-sync"
+  ],
+  "author": "Claude Sync Team",
+  "license": "MIT",
+  "devDependencies": {
+    "@tauri-apps/cli": "^1.6.0"
+  }
+}

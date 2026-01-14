@@ -1,0 +1,23 @@
+# Node
+node_modules/
+
+# Rust
+src-tauri/target/
+Cargo.lock
+
+# Tauri
+src-tauri/WixTools
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build
+*.log
