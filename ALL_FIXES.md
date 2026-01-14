@@ -1,6 +1,6 @@
 # 🎯 GUI 客户端构建 - 完整修复清单
 
-## ✅ 所有 11 个问题已修复
+## ✅ 所有 12 个问题已修复
 
 ### 修复历史
 
@@ -17,6 +17,7 @@
 | 9 | javascriptcoregtk 兼容性 | Linux | 2787d19 | ✅ |
 | 10 | tracing 依赖缺失 | 全部 | b5d8cec | ✅ |
 | 11 | 图标文件缺失 | 全部 | 5ce7a2e | ✅ |
+| 12 | Windows PowerShell 语法错误 | Win/macOS | c830288 | ✅ |
 
 ---
 
@@ -312,17 +313,78 @@ error: proc macro panicked
 
 ---
 
+### 1️⃣2️⃣ Windows PowerShell 语法错误 ✅
+**提交**: `c830288`
+
+**问题**: Windows 的 PowerShell 不支持 bash 的 `if [ ! -f file ]` 语法
+
+**错误信息**:
+```
+ParserError: D:\a\_temp\...\ps1:4
+Line |
+   4 |  if [ ! -f icon.png ]; then
+     |    ~
+     | Missing '(' after 'if' in if statement.
+Error: Process completed with exit code 1.
+```
+
+**原因**:
+- Windows GitHub Actions runner 使用 PowerShell
+- 之前的图标生成脚本使用了 bash 语法
+- `if [ ! -f file ]` 是 bash 的文件测试语法，PowerShell 不支持
+
+**修复**:
+创建跨平台的 Node.js 脚本 `gui-client/generate-icon.js`：
+
+```javascript
+const fs = require('fs');
+const path = require('path');
+
+// Simple 512x512 PNG icon (base64 encoded)
+const iconPngBase64 = 'iVBORw0KGgoAAAANSUhEUgAAAAg...';
+
+const iconsDir = path.join(__dirname, 'src-tauri', 'icons');
+const iconPath = path.join(iconsDir, 'icon.png');
+
+// Create icons directory if it doesn't exist
+if (!fs.existsSync(iconsDir)) {
+  fs.mkdirSync(iconsDir, { recursive: true });
+}
+
+// Write the icon file
+const iconBuffer = Buffer.from(iconPngBase64, 'base64');
+fs.writeFileSync(iconPath, iconBuffer);
+
+console.log(`✓ Generated icon at ${iconPath}`);
+```
+
+在 workflow 中：
+```yaml
+- name: Generate default icon (Windows/macOS)
+  if: runner.os != 'Linux'
+  working-directory: ./gui-client
+  run: node generate-icon.js
+```
+
+**说明**:
+- Node.js 脚本可以在所有平台上运行（Linux、Windows、macOS）
+- 使用 Node.js 原生的 `fs` 和 `path` 模块，跨平台兼容
+- Linux 继续使用 ImageMagick 创建更高质量的图标
+- Windows/macOS 使用 base64 编码的 PNG
+
+---
+
 ## 📊 修复统计
 
 ### 按平台分类
 - **全部平台**: 6 个修复（1, 2, 5, 6, 10, 11）
 - **Linux**: 4 个修复（3, 4, 8, 9）
-- **macOS**: 1 个修复（7）
+- **Windows/macOS**: 2 个修复（7, 12）
 
 ### 按类型分类
 - **Rust 代码**: 2 个（1, 2）
 - **依赖配置**: 6 个（3, 4, 7, 8, 9, 10）
-- **构建配置**: 3 个（5, 6, 11）
+- **构建配置**: 4 个（5, 6, 11, 12）
 
 ### 总代码变更
 - **文件修改**: 15+ 个
@@ -396,6 +458,6 @@ error: proc macro panicked
 
 ---
 
-*最后更新: 提交 5ce7a2e*
-*总修复数: 11 个*
-*文档版本: 1.3*
+*最后更新: 提交 c830288*
+*总修复数: 12 个*
+*文档版本: 1.4*
