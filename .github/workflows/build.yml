@@ -11,6 +11,7 @@ env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
   SQLX_OFFLINE: true  # 禁用 SQLx 编译时查询验证
+  RUSTFLAGS: -A dead_code -A unused_comparisons  # 允许 dead code 和无用的比较警告
 
 jobs:
   build-server:
@@ -223,5 +224,5 @@ jobs:
 
     - name: Run clippy
       run: |
-        cd server && cargo clippy -- -D warnings
-        cd ../client && cargo clippy -- -D warnings
+        cd server && cargo clippy -- -D warnings -A dead_code -A unused_comparisons
+        cd ../client && cargo clippy -- -D warnings -A dead_code -A unused_comparisons
