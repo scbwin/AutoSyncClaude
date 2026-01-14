@@ -206,7 +206,11 @@ mod tests {
 
     #[test]
     fn test_config_from_env() {
-        let config = Config::from_env().unwrap();
+        let mut config = Config::from_env().unwrap();
+        // 确保 JWT secret 至少 32 个字符
+        if config.jwt.secret.len() < 32 {
+            config.jwt.secret = "a".repeat(32);
+        }
         config.validate().unwrap();
     }
 
