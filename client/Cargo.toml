@@ -50,6 +50,9 @@ base64 = "0.21"
 tokio = { version = "1.35", features = ["full"] }
 tokio-stream = "0.1"
 
+# Tower 服务抽象
+tower = "0.4"
+
 # 命令行
 clap = { version = "4.4", features = ["derive"] }
 dialoguer = "0.11"

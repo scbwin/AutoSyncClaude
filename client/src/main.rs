@@ -460,7 +460,7 @@ async fn handle_status() -> Result<()> {
     // 检查 Token 过期时间
     if token_manager.is_access_expired()? {
         println!("⚠️  Access Token 已过期，需要刷新");
-    } else if token_manager.needs_refresh(config.auth.refresh_before)? {
+    } else if token_manager.needs_refresh(config.auth.refresh_before as i64)? {
         println!("⚠️  Access Token 即将过期");
     } else {
         println!("✓ Access Token 有效");

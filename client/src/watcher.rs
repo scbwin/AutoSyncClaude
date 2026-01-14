@@ -101,7 +101,7 @@ impl FileWatcher {
                     // 注意：这里需要处理不可变引用，因为 try_lock 返回的是 MutexGuard
                     // 但 handle_event 需要 &mut self
                     // 这是一个临时解决方案，实际需要重构 EventDeduplicator
-                    warn!("处理文件事件: {:?}", event.path);
+                    warn!("处理文件事件: {:?}", event.paths);
                 }
             }
         })

@@ -170,64 +170,28 @@ impl ConflictResolver {
         base: Option<&str>,
     ) -> Result<MergeResult> {
         if let Some(base) = base {
-            // 三方合并
-            let result = self.three_way_merge(base, local, remote)?;
+            // 简化的三方合并：检查是否有冲突
+            let local_differs = base != local;
+            let remote_differs = base != remote;
+            let local_and_remote_different = local != remote;
 
-            if result.contains("<<<<<<<") {
-                Ok(MergeResult::Conflict(result))
+            if local_differs && remote_differs && local_and_remote_different {
+                // 双方都修改了且修改不同，创建冲突标记
+                Ok(self.create_conflict_marker(local, remote))
+            } else if local_differs {
+                // 只有本地修改
+                Ok(MergeResult::Merged(local.to_string()))
+            } else if remote_differs {
+                // 只有远程修改
+                Ok(MergeResult::Merged(remote.to_string()))
             } else {
-                Ok(MergeResult::Merged(result))
+                // 都没修改
+                Ok(MergeResult::NoConflict)
             }
         } else {
             // 没有基线版本，创建冲突标记
             Ok(self.create_conflict_marker(local, remote))
         }
-    }
-
-    /// 三方合并算法
-    fn three_way_merge(&self, base: &str, local: &str, remote: &str) -> Result<String> {
-        use similar::{Algorithm, Change, TextDiff};
-
-        // 生成 base -> local 和 base -> remote 的 diff
-        let diff_base_local = TextDiff::configure()
-            .algorithm(Algorithm::Patience)
-            .diff_lines(base, local);
-
-        let diff_base_remote = TextDiff::configure()
-            .algorithm(Algorithm::Patience)
-            .diff_lines(base, remote);
-
-        // 检测冲突 - 获取所有变更
-        let local_changes: Vec<Change<str>> = diff_base_local.iter().collect::<Vec<_>>();
-        let remote_changes: Vec<Change<str>> = diff_base_remote.iter().collect::<Vec<_>>();
-
-        // 简单冲突检测：如果同一位置有不同的修改
-        let has_conflict = self.has_overlapping_changes(&local_changes, &remote_changes);
-
-        if has_conflict {
-            Ok(self.create_conflict_marker(local, remote))
-        } else {
-            // 无冲突，优先使用本地版本
-            Ok(local.to_string())
-        }
-    }
-
-    /// 检查是否有重叠的变更
-    fn has_overlapping_changes(
-        &self,
-        local_changes: &[similar::Change<str>],
-        remote_changes: &[similar::Change<str>],
-    ) -> bool {
-        // 简化实现：如果都有删除或插入，则认为有冲突
-        let local_has_changes = local_changes
-            .iter()
-            .any(|c| matches!(c, similar::Change::Insert(_) | similar::Change::Delete(_)));
-
-        let remote_has_changes = remote_changes
-            .iter()
-            .any(|c| matches!(c, similar::Change::Insert(_) | similar::Change::Delete(_)));
-
-        local_has_changes && remote_has_changes
     }
 
     /// 合并 JSON 文件（结构化合并）
@@ -293,6 +257,10 @@ impl ConflictResolver {
                             let merged_value = self.merge_json_values(b, l, r)?;
                             merged.insert(key.clone(), merged_value);
                         }
+                        // 基线没有，但本地和远程都有（需要选择策略，这里使用本地）
+                        (None, Some(l), Some(_r)) => {
+                            merged.insert(key.clone(), l.clone());
+                        }
                         // 只有本地有
                         (_, Some(l), None) => {
                             merged.insert(key.clone(), l.clone());
@@ -329,7 +297,7 @@ impl ConflictResolver {
                 let mut merged = local_map.clone();
 
                 for (key, remote_value) in remote_map {
-                    if let Some(local_value) = local_map.get(&key) {
+                    if let Some(local_value) = local_map.get(key.as_str()) {
                         // 键都存在，递归合并
                         let merged_value = self.merge_json_values_without_base(local_value, remote_value)?;
                         merged.insert(key.clone(), merged_value);

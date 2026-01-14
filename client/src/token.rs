@@ -266,7 +266,7 @@ impl TokenManager {
         // 加密
         let ciphertext = cipher
             .encrypt(&nonce, plaintext.as_bytes())
-            .context("加密失败")?;
+            .map_err(|e| anyhow::anyhow!("加密失败: {}", e))?;
 
         // 组合 nonce 和密文
         let mut result = nonce.to_vec();
@@ -301,7 +301,7 @@ impl TokenManager {
         let cipher = Aes256Gcm::new(&key_bytes.into());
         let plaintext = cipher
             .decrypt(nonce, ciphertext_bytes)
-            .context("解密失败")?;
+            .map_err(|e| anyhow::anyhow!("解密失败: {}", e))?;
 
         String::from_utf8(plaintext).context("UTF-8 解码失败")
     }

@@ -165,19 +165,21 @@ impl NetworkRecoveryManager {
 
     /// 确保网络在线
     async fn ensure_online(&self) -> Result<(), ClientError> {
-        let status = self.get_status().await;
+        loop {
+            let status = self.get_status().await;
 
-        match status {
-            NetworkStatus::Online => Ok(()),
-            NetworkStatus::Offline | NetworkStatus::Unknown => {
-                warn!("网络离线，尝试重连...");
-                self.reconnect().await
-            }
-            NetworkStatus::Reconnecting => {
-                // 正在重连，等待
-                debug!("等待重连完成...");
-                sleep(Duration::from_secs(1)).await;
-                self.ensure_online().await
+            match status {
+                NetworkStatus::Online => return Ok(()),
+                NetworkStatus::Offline | NetworkStatus::Unknown => {
+                    warn!("网络离线，尝试重连...");
+                    self.reconnect().await?;
+                }
+                NetworkStatus::Reconnecting => {
+                    // 正在重连，等待
+                    debug!("等待重连完成...");
+                    sleep(Duration::from_secs(1)).await;
+                    // 继续循环
+                }
             }
         }
     }
@@ -226,7 +228,7 @@ impl NetworkRecoveryManager {
     }
 
     /// 添加离线操作到队列
-    pub async fn queue_offline_operation(&self, operation: OfflineOperation) -> Result<()> {
+    pub async fn queue_offline_operation(&self, operation: OfflineOperation) -> anyhow::Result<()> {
         self.offline_queue.push(operation).await.map_err(|e| {
             ClientError::internal(
                 format!("无法添加离线操作: {}", e.user_message()),
