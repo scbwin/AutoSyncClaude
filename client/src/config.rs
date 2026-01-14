@@ -95,7 +95,7 @@ pub struct SyncConfig {
 
     /// 同步规则（本地配置，优先级低于服务器规则）
     #[serde(default)]
-    pub rules: Vec<SyncRule>,
+    pub rules: Vec<crate::rules::SyncRule>,
 }
 
 /// 冲突解决配置
@@ -167,30 +167,6 @@ pub struct LoggingConfig {
     /// 日志格式（json, text）
     #[serde(default = "default_log_format")]
     pub format: String,
-}
-
-/// 同步规则
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SyncRule {
-    /// 规则名称
-    pub name: String,
-
-    /// 规则类型（include/exclude）
-    pub rule_type: String,
-
-    /// 文件模式（Glob 或正则表达式）
-    pub pattern: String,
-
-    /// 文件类型（可选）
-    pub file_type: Option<String>,
-
-    /// 优先级（数字越大优先级越高）
-    #[serde(default)]
-    pub priority: i32,
-
-    /// 是否启用
-    #[serde(default = "default_enabled")]
-    pub enabled: bool,
 }
 
 // ===== 默认值函数 =====
@@ -498,7 +474,7 @@ impl ClientConfig {
                 if glob_pattern.matches_path(path) {
                     // 优先级更高的规则会覆盖之前的规则
                     if rule.priority > highest_priority {
-                        should_sync = rule.rule_type == "include";
+                        should_sync = matches!(rule.rule_type, crate::rules::RuleType::Include);
                         highest_priority = rule.priority;
                     }
                 }
@@ -590,23 +566,29 @@ mod tests {
         let mut config = ClientConfig::default();
 
         // 添加包含规则
-        config.sync.rules.push(SyncRule {
+        config.sync.rules.push(crate::rules::SyncRule {
+            id: "include-md".to_string(),
             name: "include-md".to_string(),
-            rule_type: "include".to_string(),
+            rule_type: crate::rules::RuleType::Include,
             pattern: "*.md".to_string(),
+            pattern_type: crate::rules::PatternType::Glob,
             file_type: Some("text".to_string()),
             priority: 0,
             enabled: true,
+            description: None,
         });
 
         // 添加排除规则
-        config.sync.rules.push(SyncRule {
+        config.sync.rules.push(crate::rules::SyncRule {
+            id: "exclude-temp".to_string(),
             name: "exclude-temp".to_string(),
-            rule_type: "exclude".to_string(),
+            rule_type: crate::rules::RuleType::Exclude,
             pattern: "*-temp.md".to_string(),
+            pattern_type: crate::rules::PatternType::Glob,
             file_type: Some("text".to_string()),
             priority: 10,
             enabled: true,
+            description: None,
         });
 
         let test_path = PathBuf::from("test-temp.md");

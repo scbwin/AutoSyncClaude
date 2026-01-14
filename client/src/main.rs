@@ -484,9 +484,13 @@ async fn handle_rules(command: RuleCommands) -> Result<()> {
             println!("{}", "-".repeat(70));
 
             for rule in &config.sync.rules {
+                let rule_type_str = match rule.rule_type {
+                    rules::RuleType::Include => "include",
+                    rules::RuleType::Exclude => "exclude",
+                };
                 println!(
                     "{:<5} {:<20} {:<10} {:<30}",
-                    rule.priority, rule.name, rule.rule_type, rule.pattern
+                    rule.priority, rule.name, rule_type_str, rule.pattern
                 );
             }
 
@@ -508,11 +512,12 @@ async fn handle_rules(command: RuleCommands) -> Result<()> {
                 _ => anyhow::bail!("无效的规则类型: {}", rule_type),
             };
 
-            let new_rule = config::SyncRule {
+            let new_rule = rules::SyncRule {
                 id: Uuid::new_v4().to_string(),
                 name: name.clone(),
-                rule_type: rule_type_enum as i32,
+                rule_type: rule_type_enum,
                 pattern,
+                pattern_type: rules::PatternType::Glob,  // 默认使用 Glob
                 file_type,
                 priority,
                 enabled: true,
@@ -618,6 +623,7 @@ fn create_progress_bar(len: u64) -> ProgressBar {
     pb.set_style(
         ProgressStyle::default_bar()
             .template("[{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta})")
+            .expect("无效的进度条模板")
             .progress_chars("##-"),
     );
     pb

@@ -89,6 +89,31 @@ pub enum ClientError {
     },
 }
 
+// 手动实现 Clone,因为包含 Box<dyn Error>
+impl Clone for ClientError {
+    fn clone(&self) -> Self {
+        match self {
+            Self::Config { message } => Self::Config { message: message.clone() },
+            Self::Auth { message } => Self::Auth { message: message.clone() },
+            Self::Token { message } => Self::Token { message: message.clone() },
+            Self::Network { message, source: _ } => Self::Network { message: message.clone(), source: None },
+            Self::Grpc { code, message } => Self::Grpc { code: *code, message: message.clone() },
+            Self::File { path, message, source: _ } => Self::File { path: path.clone(), message: message.clone(), source: None },
+            Self::Sync { path, message } => Self::Sync { path: path.clone(), message: message.clone() },
+            Self::Conflict { path, message } => Self::Conflict { path: path.clone(), message: message.clone() },
+            Self::Parse { message, source: _ } => Self::Parse { message: message.clone(), source: None },
+            Self::Validation { message } => Self::Validation { message: message.clone() },
+            Self::Timeout { operation, timeout_secs } => Self::Timeout { operation: operation.clone(), timeout_secs: *timeout_secs },
+            Self::RetryExhausted { operation, max_retries, last_error } => Self::RetryExhausted {
+                operation: operation.clone(),
+                max_retries: *max_retries,
+                last_error: last_error.clone(),
+            },
+            Self::Internal { message, source: _ } => Self::Internal { message: message.clone(), source: None },
+        }
+    }
+}
+
 impl ClientError {
     /// 创建配置错误
     pub fn config(message: impl Into<String>) -> Self {

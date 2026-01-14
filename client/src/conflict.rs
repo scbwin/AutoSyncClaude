@@ -197,9 +197,9 @@ impl ConflictResolver {
             .algorithm(Algorithm::Patience)
             .diff_lines(base, remote);
 
-        // 检测冲突
-        let local_changes: Vec<_> = diff_base_local.iter().collect();
-        let remote_changes: Vec<_> = diff_base_remote.iter().collect();
+        // 检测冲突 - collect Change values instead of references
+        let local_changes: Vec<_> = diff_base_local.iter().cloned().collect();
+        let remote_changes: Vec<_> = diff_base_remote.iter().cloned().collect();
 
         // 简单冲突检测：如果同一位置有不同的修改
         let has_conflict = self.has_overlapping_changes(&local_changes, &remote_changes);
@@ -215,8 +215,8 @@ impl ConflictResolver {
     /// 检查是否有重叠的变更
     fn has_overlapping_changes(
         &self,
-        local_changes: &[&similar::Change<'_>],
-        remote_changes: &[&similar::Change<'_>],
+        local_changes: &[similar::Change],
+        remote_changes: &[similar::Change],
     ) -> bool {
         // 简化实现：如果都有删除或插入，则认为有冲突
         let local_has_changes = local_changes
@@ -279,9 +279,9 @@ impl ConflictResolver {
                     .collect();
 
                 for key in all_keys {
-                    let base_value = base_map.get(&key);
-                    let local_value = local_map.get(&key);
-                    let remote_value = remote_map.get(&key);
+                    let base_value = base_map.get(key);
+                    let local_value = local_map.get(key);
+                    let remote_value = remote_map.get(key);
 
                     match (base_value, local_value, remote_value) {
                         // 三者都存在且相同
