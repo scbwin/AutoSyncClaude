@@ -25,7 +25,7 @@ impl StorageService {
             None,
             None,
             None,
-        );
+        )?;
 
         // 创建 Bucket 配置
         let region = s3::Region::Custom {
@@ -71,7 +71,7 @@ impl StorageService {
         );
 
         let content_type = content_type.unwrap_or_else(|| "application/octet-stream".to_string());
-        let _: Vec<u8> = self.bucket.put_object_with_content_type(
+        self.bucket.put_object_with_content_type(
             &storage_path.full_path(),
             &data,
             &content_type,
@@ -92,8 +92,9 @@ impl StorageService {
             user_id, file_hash
         );
 
-        let data: Vec<u8> = self.bucket.get_object(&storage_path.full_path()).await
+        let response = self.bucket.get_object(&storage_path.full_path()).await
             .map_err(|e| anyhow::anyhow!("Failed to download file: {}", e))?;
+        let data = response.bytes.to_vec();
 
         debug!("✓ File downloaded successfully: {} bytes", data.len());
 
@@ -109,7 +110,7 @@ impl StorageService {
             user_id, file_hash
         );
 
-        let _: Vec<u8> = self.bucket.delete_object(&storage_path.full_path()).await
+        self.bucket.delete_object(&storage_path.full_path()).await
             .map_err(|e| anyhow::anyhow!("Failed to delete file: {}", e))?;
 
         debug!("✓ File deleted successfully");

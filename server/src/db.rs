@@ -1,5 +1,5 @@
 use anyhow::Result;
-use sqlx::{postgres::PgPoolOptions, Row};
+use sqlx::postgres::PgPoolOptions;
 use std::time::Duration;
 use tracing::info;
 use uuid::Uuid;
@@ -374,7 +374,7 @@ impl TokenRepository {
 
 // ===== 数据行结构 =====
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, sqlx::FromRow)]
 pub struct UserRow {
     pub id: Uuid,
     pub username: String,
@@ -385,7 +385,7 @@ pub struct UserRow {
     pub is_active: bool,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, sqlx::FromRow)]
 pub struct DeviceRow {
     pub id: Uuid,
     pub user_id: Uuid,
@@ -397,7 +397,7 @@ pub struct DeviceRow {
     pub is_active: bool,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, sqlx::FromRow)]
 pub struct TokenRow {
     pub id: Uuid,
     pub user_id: Uuid,

@@ -1,7 +1,6 @@
 use crate::cache::{Cache, FileChangeNotification, ChangeType};
 use crate::db::DbPool;
 use crate::storage::StorageService;
-use anyhow::Result;
 use tracing::{debug, error};
 use uuid::Uuid;
 
