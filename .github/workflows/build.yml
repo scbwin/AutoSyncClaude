@@ -12,6 +12,8 @@ env:
   RUST_BACKTRACE: 1
   SQLX_OFFLINE: true  # 禁用 SQLx 编译时查询验证
   RUSTFLAGS: -A dead_code -A unused_comparisons  # 允许 dead code 和无用的比较警告
+  CARGO_NET_RETRY: 10
+  CARGO_INCREMENTAL: 0
 
 jobs:
   build-server:
