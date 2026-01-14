@@ -1,9 +1,9 @@
 use crate::config::Config;
 use anyhow::Result;
-use rust_s3::bucket::Bucket;
-use rust_s3::creds::Credentials;
+use s3::bucket::Bucket;
+use s3::creds::Credentials;
 use sha2::{Digest, Sha256};
-use tracing::{debug, error, info};
+use tracing::{debug, info};
 use uuid::Uuid;
 
 /// MinIO/S3 对象存储服务
@@ -28,7 +28,7 @@ impl StorageService {
         );
 
         // 创建 Bucket 配置
-        let region = rust_s3::Region::Custom {
+        let region = s3::Region::Custom {
             region: config.minio.region.clone(),
             endpoint: config.minio.endpoint.clone(),
         };

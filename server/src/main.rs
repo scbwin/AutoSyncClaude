@@ -77,7 +77,7 @@ async fn main() -> Result<()> {
     info!("  ✓ Database: Connected and healthy");
     info!("  ✓ Redis: Connected and healthy");
     info!("  ✓ MinIO: Connected and healthy");
-    info!("  ✓ Health Check: Running on {}", health_check_addr);
+    info!("  ✓ Health Check: Running on {}", health_addr_for_log);
     info!("\n⚠️  gRPC Server: Services initialized but not started");
     info!("   Ready services:");
     info!("   - AuthService");

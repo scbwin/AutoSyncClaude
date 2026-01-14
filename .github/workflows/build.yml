@@ -10,6 +10,7 @@ on:
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
+  SQLX_OFFLINE: true  # 禁用 SQLx 编译时查询验证
 
 jobs:
   build-server:

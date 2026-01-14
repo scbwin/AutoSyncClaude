@@ -11,7 +11,14 @@
       "Bash(rustc:*)",
       "Bash(protoc:*)",
       "Bash(export:*)",
-      "Bash(export TMPDIR=/d/temp:*)"
+      "Bash(export TMPDIR=/d/temp:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push)",
+      "Bash(git reset:*)",
+      "Bash(git restore:*)",
+      "Bash(git push:*)",
+      "Bash(gh run list:*)"
     ]
   }
 }
