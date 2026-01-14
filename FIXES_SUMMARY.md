@@ -67,6 +67,25 @@ libwebkit2gtk-4.1-dev
 
 ---
 
+### 修复 6: Linux libsoup 依赖缺失 ✅
+**问题**: `soup2-sys` 编译失败，缺少 `libsoup-2.4` 库
+
+**错误信息**:
+```
+The system library `libsoup-2.4` required by crate `soup2-sys` was not found
+The file `libsoup-2.4.pc` needs to be installed
+```
+
+**修复**: 添加 `libsoup2.4-dev` 到依赖列表
+```bash
+# 添加到 apt-get install
+sudo apt-get install libsoup2.4-dev
+```
+
+**原因**: WebKitGTK 需要 libsoup 来支持 HTTP 功能
+
+---
+
 ### 修复 5: macOS 构建目标错误 ✅
 **问题**: `--target universal-apple-darwin` 参数传递给 cargo 导致错误
 
