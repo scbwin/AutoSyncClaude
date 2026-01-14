@@ -68,9 +68,7 @@ impl HealthCheckService {
 }
 
 /// 健康检查处理器
-async fn health_handler(
-    State(service): State<Arc<HealthCheckService>>,
-) -> impl IntoResponse {
+async fn health_handler(State(service): State<Arc<HealthCheckService>>) -> impl IntoResponse {
     // 检查数据库
     let db_healthy = match service.pool.health_check().await {
         Ok(_) => HealthStatus {
@@ -125,9 +123,7 @@ async fn health_handler(
 }
 
 /// 就绪检查处理器
-async fn ready_handler(
-    State(service): State<Arc<HealthCheckService>>,
-) -> impl IntoResponse {
+async fn ready_handler(State(service): State<Arc<HealthCheckService>>) -> impl IntoResponse {
     // 检查数据库是否就绪
     match service.pool.health_check().await {
         Ok(_) => (

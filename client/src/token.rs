@@ -90,8 +90,7 @@ impl TokenManager {
         let token_file = self.token_file()?;
 
         // 序列化 Token
-        let content = serde_json::to_string_pretty(&tokens)
-            .context("无法序列化 Token")?;
+        let content = serde_json::to_string_pretty(&tokens).context("无法序列化 Token")?;
 
         // 如果设置了加密密钥，则加密 Token
         let content_to_write = if let Some(ref key) = self.encryption_key {
@@ -129,8 +128,7 @@ impl TokenManager {
         };
 
         // 反序列化
-        let tokens: TokenStorage = serde_json::from_str(&content)
-            .context("无法解析 Token")?;
+        let tokens: TokenStorage = serde_json::from_str(&content).context("无法解析 Token")?;
 
         debug!("Token 加载成功");
 
@@ -152,9 +150,7 @@ impl TokenManager {
 
     /// 检查 Token 是否存在
     pub fn has_tokens(&self) -> bool {
-        self.token_file()
-            .map(|p| p.exists())
-            .unwrap_or(false)
+        self.token_file().map(|p| p.exists()).unwrap_or(false)
     }
 
     /// 检查 Access Token 是否需要刷新
@@ -390,9 +386,7 @@ mod base64_helper {
 
     pub fn decode(data: &str) -> Result<Vec<u8>> {
         use base64::prelude::*;
-        BASE64_STANDARD
-            .decode(data)
-            .context("Base64 解码失败")
+        BASE64_STANDARD.decode(data).context("Base64 解码失败")
     }
 }
 

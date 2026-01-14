@@ -41,9 +41,7 @@ impl DbPool {
 
     /// 健康检查
     pub async fn health_check(&self) -> Result<()> {
-        sqlx::query("SELECT 1")
-            .fetch_one(&self.pool)
-            .await?;
+        sqlx::query("SELECT 1").fetch_one(&self.pool).await?;
         Ok(())
     }
 
@@ -63,9 +61,7 @@ macro_rules! transaction {
     ($pool:expr, $body:expr) => {{
         use anyhow::Result;
         let mut tx = $pool.begin().await?;
-        let result = async move {
-            $body
-        };
+        let result = async move { $body };
         let result = result.await;
         match result {
             Ok(r) => {
@@ -91,7 +87,7 @@ impl UserRepository {
             SELECT id, username, email, password_hash, created_at, updated_at, is_active
             FROM users
             WHERE email = $1
-            "#
+            "#,
         )
         .bind(email)
         .fetch_optional(pool)
@@ -107,7 +103,7 @@ impl UserRepository {
             SELECT id, username, email, password_hash, created_at, updated_at, is_active
             FROM users
             WHERE username = $1
-            "#
+            "#,
         )
         .bind(username)
         .fetch_optional(pool)
@@ -123,7 +119,7 @@ impl UserRepository {
             SELECT id, username, email, password_hash, created_at, updated_at, is_active
             FROM users
             WHERE id = $1
-            "#
+            "#,
         )
         .bind(id)
         .fetch_optional(pool)
@@ -144,7 +140,7 @@ impl UserRepository {
             INSERT INTO users (username, email, password_hash)
             VALUES ($1, $2, $3)
             RETURNING id, username, email, password_hash, created_at, updated_at, is_active
-            "#
+            "#,
         )
         .bind(username)
         .bind(email)
@@ -162,7 +158,7 @@ impl UserRepository {
             UPDATE users
             SET updated_at = NOW()
             WHERE id = $1
-            "#
+            "#,
         )
         .bind(user_id)
         .execute(pool)
@@ -177,10 +173,7 @@ pub struct DeviceRepository;
 
 impl DeviceRepository {
     /// 根据用户 ID 查找所有设备
-    pub async fn find_by_user(
-        pool: &sqlx::PgPool,
-        user_id: &Uuid,
-    ) -> Result<Vec<DeviceRow>> {
+    pub async fn find_by_user(pool: &sqlx::PgPool, user_id: &Uuid) -> Result<Vec<DeviceRow>> {
         let devices = sqlx::query_as::<_, DeviceRow>(
             r#"
             SELECT id, user_id, device_name, device_type, device_fingerprint,
@@ -188,7 +181,7 @@ impl DeviceRepository {
             FROM devices
             WHERE user_id = $1
             ORDER BY created_at DESC
-            "#
+            "#,
         )
         .bind(user_id)
         .fetch_all(pool)
@@ -208,7 +201,7 @@ impl DeviceRepository {
                    last_seen, created_at, is_active
             FROM devices
             WHERE device_fingerprint = $1
-            "#
+            "#,
         )
         .bind(fingerprint)
         .fetch_optional(pool)
@@ -231,7 +224,7 @@ impl DeviceRepository {
             VALUES ($1, $2, $3, $4)
             RETURNING id, user_id, device_name, device_type, device_fingerprint,
                       last_seen, created_at, is_active
-            "#
+            "#,
         )
         .bind(user_id)
         .bind(device_name)
@@ -250,7 +243,7 @@ impl DeviceRepository {
             UPDATE devices
             SET last_seen = NOW()
             WHERE id = $1
-            "#
+            "#,
         )
         .bind(device_id)
         .execute(pool)
@@ -266,7 +259,7 @@ impl DeviceRepository {
             UPDATE devices
             SET is_active = false
             WHERE id = $1
-            "#
+            "#,
         )
         .bind(device_id)
         .execute(pool)
@@ -295,7 +288,7 @@ impl TokenRepository {
             VALUES ($1, $2, $3, $4, $5)
             RETURNING id, user_id, device_id, token_hash, token_prefix,
                       expires_at, created_at, last_used, is_revoked
-            "#
+            "#,
         )
         .bind(user_id)
         .bind(device_id)
@@ -316,7 +309,7 @@ impl TokenRepository {
                    expires_at, created_at, last_used, is_revoked
             FROM access_tokens
             WHERE token_hash = $1
-            "#
+            "#,
         )
         .bind(token_hash)
         .fetch_optional(pool)
@@ -332,7 +325,7 @@ impl TokenRepository {
             UPDATE access_tokens
             SET is_revoked = true
             WHERE id = $1
-            "#
+            "#,
         )
         .bind(token_id)
         .execute(pool)
@@ -348,7 +341,7 @@ impl TokenRepository {
             UPDATE access_tokens
             SET last_used = NOW()
             WHERE id = $1
-            "#
+            "#,
         )
         .bind(token_id)
         .execute(pool)
@@ -363,7 +356,7 @@ impl TokenRepository {
             r#"
             DELETE FROM access_tokens
             WHERE expires_at < NOW() - INTERVAL '7 days'
-            "#
+            "#,
         )
         .execute(pool)
         .await?;

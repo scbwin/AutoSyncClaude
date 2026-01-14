@@ -61,9 +61,7 @@ pub struct RuleEngine {
 impl RuleEngine {
     /// 创建新的规则引擎
     pub fn new() -> Self {
-        Self {
-            rules: Vec::new(),
-        }
+        Self { rules: Vec::new() }
     }
 
     /// 从规则列表创建
@@ -72,7 +70,9 @@ impl RuleEngine {
         let mut sorted_rules = rules;
         sorted_rules.sort_by(|a, b| b.priority.cmp(&a.priority));
 
-        Self { rules: sorted_rules }
+        Self {
+            rules: sorted_rules,
+        }
     }
 
     /// 添加规则
@@ -211,19 +211,17 @@ impl RuleEngine {
 
     /// 获取默认规则集
     pub fn default_rules() -> Vec<SyncRule> {
-        vec![
-            SyncRule {
-                id: "default-include-all".to_string(),
-                name: "默认包含所有文件".to_string(),
-                rule_type: RuleType::Include,
-                pattern: "**".to_string(),
-                pattern_type: PatternType::Glob,
-                file_type: None,
-                priority: -100,
-                enabled: true,
-                description: Some("默认包含所有文件的兜底规则".to_string()),
-            },
-        ]
+        vec![SyncRule {
+            id: "default-include-all".to_string(),
+            name: "默认包含所有文件".to_string(),
+            rule_type: RuleType::Include,
+            pattern: "**".to_string(),
+            pattern_type: PatternType::Glob,
+            file_type: None,
+            priority: -100,
+            enabled: true,
+            description: Some("默认包含所有文件的兜底规则".to_string()),
+        }]
     }
 
     /// 获取推荐的规则集
@@ -361,10 +359,7 @@ pub fn is_config_file(path: &Path) -> bool {
     if let Some(ext) = path.extension() {
         let ext_str = ext.to_string_lossy().to_lowercase();
 
-        matches!(
-            ext_str.as_str(),
-            "json" | "yaml" | "yml" | "toml" | "xml"
-        )
+        matches!(ext_str.as_str(), "json" | "yaml" | "yml" | "toml" | "xml")
     } else {
         false
     }

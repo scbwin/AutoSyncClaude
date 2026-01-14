@@ -141,11 +141,7 @@ impl RetryExecutor {
             match operation().await {
                 Ok(result) => {
                     if attempt > 0 {
-                        info!(
-                            "操作 '{}' 在第 {} 次重试后成功",
-                            operation_name,
-                            attempt
-                        );
+                        info!("操作 '{}' 在第 {} 次重试后成功", operation_name, attempt);
                     }
                     return Ok(result);
                 }
@@ -193,9 +189,7 @@ impl RetryExecutor {
         }
 
         // 理论上不会到达这里
-        Err(last_error.unwrap_or_else(|| {
-            ClientError::internal("未知错误", None)
-        }))
+        Err(last_error.unwrap_or_else(|| ClientError::internal("未知错误", None)))
     }
 
     /// 执行带重试的操作（返回详细结果）
@@ -310,7 +304,9 @@ mod tests {
         use std::sync::atomic::{AtomicI32, Ordering};
         use std::sync::Arc;
 
-        let config = RetryConfig::new().with_max_retries(3).with_initial_delay_ms(10);
+        let config = RetryConfig::new()
+            .with_max_retries(3)
+            .with_initial_delay_ms(10);
         let executor = RetryExecutor::new(config);
 
         let attempt_count = Arc::new(AtomicI32::new(0));
@@ -338,7 +334,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_retry_executor_exhausted() {
-        let config = RetryConfig::new().with_max_retries(2).with_initial_delay_ms(10);
+        let config = RetryConfig::new()
+            .with_max_retries(2)
+            .with_initial_delay_ms(10);
         let executor = RetryExecutor::new(config);
 
         let result = executor

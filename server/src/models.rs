@@ -142,10 +142,10 @@ impl Token {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Claims {
     // 标准声明
-    pub exp: usize,      // 过期时间
-    pub iat: usize,      // 签发时间
-    pub iss: String,     // 签发者
-    pub sub: String,     // 主题（用户 ID）
+    pub exp: usize,  // 过期时间
+    pub iat: usize,  // 签发时间
+    pub iss: String, // 签发者
+    pub sub: String, // 主题（用户 ID）
 
     // 自定义声明
     pub user_id: Uuid,
@@ -347,11 +347,7 @@ pub fn hash_string(input: &str) -> String {
 }
 
 /// 生成设备指纹
-pub fn generate_device_fingerprint(
-    machine_id: &str,
-    mac_address: &str,
-    hostname: &str,
-) -> String {
+pub fn generate_device_fingerprint(machine_id: &str, mac_address: &str, hostname: &str) -> String {
     let combined = format!("{}|{}|{}", machine_id, mac_address, hostname);
     hash_string(&combined)
 }

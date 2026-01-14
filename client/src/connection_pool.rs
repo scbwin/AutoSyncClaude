@@ -40,8 +40,8 @@ impl Default for PoolConfig {
         Self {
             max_connections: 10,
             min_idle_connections: 2,
-            max_idle_time_secs: 300,     // 5 分钟
-            max_lifetime_secs: 1800,      // 30 分钟
+            max_idle_time_secs: 300, // 5 分钟
+            max_lifetime_secs: 1800, // 30 分钟
             connection_timeout_secs: 10,
             acquire_timeout_secs: 5,
             enable_health_check: true,
@@ -158,15 +158,8 @@ impl ConnectionPool {
             self.semaphore.acquire(),
         )
         .await
-        .map_err(|_| {
-            ClientError::timeout(
-                "获取连接",
-                self.config.acquire_timeout_secs,
-            )
-        })?
-        .map_err(|_| {
-            ClientError::internal("信号量关闭", None)
-        })?;
+        .map_err(|_| ClientError::timeout("获取连接", self.config.acquire_timeout_secs))?
+        .map_err(|_| ClientError::internal("信号量关闭", None))?;
 
         // 尝试从空闲连接中获取
         {
@@ -198,7 +191,10 @@ impl ConnectionPool {
                 conn.mark_in_use();
 
                 let conn_id = format!("conn_{}", conn.use_count);
-                self.active_connections.write().await.insert(conn_id.clone(), conn);
+                self.active_connections
+                    .write()
+                    .await
+                    .insert(conn_id.clone(), conn);
 
                 debug!("从池中获取连接: {}", conn_id);
 
@@ -217,18 +213,16 @@ impl ConnectionPool {
             self.create_connection(),
         )
         .await
-        .map_err(|_| {
-            ClientError::timeout(
-                "创建连接",
-                self.config.connection_timeout_secs,
-            )
-        })??;
+        .map_err(|_| ClientError::timeout("创建连接", self.config.connection_timeout_secs))??;
 
         let mut wrapper = ConnectionWrapper::new(channel);
         wrapper.mark_in_use();
 
         let conn_id = format!("conn_{}", wrapper.use_count);
-        self.active_connections.write().await.insert(conn_id.clone(), wrapper);
+        self.active_connections
+            .write()
+            .await
+            .insert(conn_id.clone(), wrapper);
 
         info!("创建新连接: {}", conn_id);
 
@@ -308,9 +302,8 @@ impl ConnectionPool {
     /// 启动健康检查任务
     pub fn spawn_health_check(self: Arc<Self>) -> tokio::task::JoinHandle<()> {
         tokio::spawn(async move {
-            let mut interval = tokio::time::interval(Duration::from_secs(
-                self.config.health_check_interval_secs,
-            ));
+            let mut interval =
+                tokio::time::interval(Duration::from_secs(self.config.health_check_interval_secs));
 
             loop {
                 interval.tick().await;
@@ -328,9 +321,7 @@ impl ConnectionPool {
                 let mut idle = self.idle_connections.lock().await;
                 let before_count = idle.len();
 
-                idle.retain(|conn| {
-                    !conn.is_expired(max_idle_time, max_lifetime)
-                });
+                idle.retain(|conn| !conn.is_expired(max_idle_time, max_lifetime));
 
                 let after_count = idle.len();
 
@@ -557,9 +548,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_connection_wrapper_expiry() {
-        let wrapper = ConnectionWrapper::new(
-            Channel::from_static("http://localhost:50051").connect_lazy()
-        );
+        let wrapper =
+            ConnectionWrapper::new(Channel::from_static("http://localhost:50051").connect_lazy());
 
         let max_idle_time = Duration::from_secs(0); // 立即过期
         let max_lifetime = Duration::from_secs(3600);

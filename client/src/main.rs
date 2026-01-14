@@ -480,7 +480,10 @@ async fn handle_rules(command: RuleCommands) -> Result<()> {
     match command {
         RuleCommands::List => {
             println!("同步规则:");
-            println!("{:<5} {:<20} {:<10} {:<30}", "优先级", "名称", "类型", "模式");
+            println!(
+                "{:<5} {:<20} {:<10} {:<30}",
+                "优先级", "名称", "类型", "模式"
+            );
             println!("{}", "-".repeat(70));
 
             for rule in &config.sync.rules {
@@ -517,7 +520,7 @@ async fn handle_rules(command: RuleCommands) -> Result<()> {
                 name: name.clone(),
                 rule_type: rule_type_enum,
                 pattern,
-                pattern_type: rules::PatternType::Glob,  // 默认使用 Glob
+                pattern_type: rules::PatternType::Glob, // 默认使用 Glob
                 file_type,
                 priority,
                 enabled: true,

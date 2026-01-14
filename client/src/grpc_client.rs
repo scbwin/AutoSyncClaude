@@ -141,10 +141,7 @@ impl GrpcClient {
 
     /// 上报文件变更
     #[allow(dead_code)]
-    pub async fn report_changes(
-        &self,
-        changes: Vec<FileChange>,
-    ) -> Result<ReportChangesResponse> {
+    pub async fn report_changes(&self, changes: Vec<FileChange>) -> Result<ReportChangesResponse> {
         debug!("上报 {} 个文件变更", changes.len());
 
         // TODO: 实现 FileSyncService.ReportChanges RPC 调用

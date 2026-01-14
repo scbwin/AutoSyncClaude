@@ -33,11 +33,7 @@ impl StorageService {
             endpoint: config.minio.endpoint.clone(),
         };
 
-        let bucket = Bucket::new(
-            &config.minio.bucket,
-            region,
-            credentials,
-        )?.with_path_style();
+        let bucket = Bucket::new(&config.minio.bucket, region, credentials)?.with_path_style();
 
         let bucket_name = config.minio.bucket.clone();
 
@@ -71,12 +67,10 @@ impl StorageService {
         );
 
         let content_type = content_type.unwrap_or_else(|| "application/octet-stream".to_string());
-        self.bucket.put_object_with_content_type(
-            &storage_path.full_path(),
-            &data,
-            &content_type,
-        ).await
-        .map_err(|e| anyhow::anyhow!("Failed to upload file: {}", e))?;
+        self.bucket
+            .put_object_with_content_type(&storage_path.full_path(), &data, &content_type)
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to upload file: {}", e))?;
 
         debug!("✓ File uploaded successfully");
 
@@ -87,12 +81,12 @@ impl StorageService {
     pub async fn download_file(&self, user_id: &Uuid, file_hash: &str) -> Result<Vec<u8>> {
         let storage_path = self.generate_storage_path(user_id, file_hash);
 
-        debug!(
-            "Downloading file: user_id={}, hash={}",
-            user_id, file_hash
-        );
+        debug!("Downloading file: user_id={}, hash={}", user_id, file_hash);
 
-        let response = self.bucket.get_object(&storage_path.full_path()).await
+        let response = self
+            .bucket
+            .get_object(&storage_path.full_path())
+            .await
             .map_err(|e| anyhow::anyhow!("Failed to download file: {}", e))?;
         let data = response.bytes().to_vec();
 
@@ -105,12 +99,11 @@ impl StorageService {
     pub async fn delete_file(&self, user_id: &Uuid, file_hash: &str) -> Result<()> {
         let storage_path = self.generate_storage_path(user_id, file_hash);
 
-        debug!(
-            "Deleting file: user_id={}, hash={}",
-            user_id, file_hash
-        );
+        debug!("Deleting file: user_id={}, hash={}", user_id, file_hash);
 
-        self.bucket.delete_object(&storage_path.full_path()).await
+        self.bucket
+            .delete_object(&storage_path.full_path())
+            .await
             .map_err(|e| anyhow::anyhow!("Failed to delete file: {}", e))?;
 
         debug!("✓ File deleted successfully");
@@ -179,10 +172,7 @@ impl StoragePath {
 
     /// 版本元数据路径
     pub fn version_metadata_path(&self, version_id: &Uuid) -> String {
-        format!(
-            "users/{}/versions/{}.meta",
-            self.user_id, version_id
-        )
+        format!("users/{}/versions/{}.meta", self.user_id, version_id)
     }
 
     /// 冲突备份路径

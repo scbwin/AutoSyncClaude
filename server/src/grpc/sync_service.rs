@@ -1,4 +1,4 @@
-use crate::cache::{Cache, FileChangeNotification, ChangeType};
+use crate::cache::{Cache, ChangeType, FileChangeNotification};
 use crate::db::DbPool;
 use crate::storage::StorageService;
 use tracing::{debug, error};

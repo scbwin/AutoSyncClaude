@@ -202,11 +202,7 @@ impl MonitoringManager {
     /// 获取指定名称的指标
     pub async fn get_metrics_by_name(&self, name: &str) -> Vec<Metric> {
         let metrics = self.metrics.read().await;
-        metrics
-            .iter()
-            .filter(|m| m.name == name)
-            .cloned()
-            .collect()
+        metrics.iter().filter(|m| m.name == name).cloned().collect()
     }
 
     /// 清空指标
@@ -278,12 +274,12 @@ impl MonitoringManager {
         .await;
 
         if upload_bytes > 0 {
-            self.record_counter("upload_bytes", upload_bytes as f64, vec![]).await;
+            self.record_counter("upload_bytes", upload_bytes as f64, vec![])
+                .await;
         }
 
         if download_bytes > 0 {
-            self
-                .record_counter("download_bytes", download_bytes as f64, vec![])
+            self.record_counter("download_bytes", download_bytes as f64, vec![])
                 .await;
         }
     }
@@ -371,24 +367,20 @@ impl MonitoringManager {
     }
 
     /// 记录慢操作
-    pub async fn record_slow_operation(
-        &self,
-        operation: impl Into<String>,
-        duration: Duration,
-    ) {
+    pub async fn record_slow_operation(&self, operation: impl Into<String>, duration: Duration) {
         let duration_ms = duration.as_millis() as u64;
 
         if duration_ms >= self.slow_operation_threshold_ms {
             let operation_name = operation.into();
-            warn!(
-                "检测到慢操作: {} 耗时 {} ms",
-                operation_name, duration_ms
-            );
+            warn!("检测到慢操作: {} 耗时 {} ms", operation_name, duration_ms);
 
             self.record_histogram(
                 format!("slow_operation_{}", operation_name),
                 duration_ms as f64,
-                vec![("threshold_ms".to_string(), self.slow_operation_threshold_ms.to_string())],
+                vec![(
+                    "threshold_ms".to_string(),
+                    self.slow_operation_threshold_ms.to_string(),
+                )],
             )
             .await;
         }
@@ -413,10 +405,7 @@ impl MonitoringManager {
         info!("文件下载总数: {}", stats.download_total_count);
         info!("上传字节总数: {} bytes", stats.upload_total_bytes);
         info!("下载字节总数: {} bytes", stats.download_total_bytes);
-        info!(
-            "平均同步持续时间: {:.2} ms",
-            stats.avg_sync_duration_ms
-        );
+        info!("平均同步持续时间: {:.2} ms", stats.avg_sync_duration_ms);
         info!("平均上传速度: {:.2} bytes/s", stats.avg_upload_speed);
         info!("平均下载速度: {:.2} bytes/s", stats.avg_download_speed);
         info!("网络状态: {}", stats.network_status);
@@ -472,21 +461,21 @@ impl SyncTimer {
             .await;
 
         // 记录到 tracing
-        let span = span!(Level::INFO, "sync_complete", success = success, duration_ms = duration_ms);
+        let span = span!(
+            Level::INFO,
+            "sync_complete",
+            success = success,
+            duration_ms = duration_ms
+        );
         let _enter = span.enter();
 
         info!(
             "同步完成: {} 个文件, {} ms 上传, {} ms 下载, 耗时 {} ms",
-            self.file_count,
-            self.upload_bytes,
-            self.download_bytes,
-            duration_ms
+            self.file_count, self.upload_bytes, self.download_bytes, duration_ms
         );
 
         // 检查是否为慢操作
-        self.manager
-            .record_slow_operation("sync", duration)
-            .await;
+        self.manager.record_slow_operation("sync", duration).await;
     }
 }
 
@@ -524,7 +513,11 @@ impl OperationTimer {
             .record_slow_operation(&self.operation_name, duration)
             .await;
 
-        debug!("操作 '{}' 耗时 {} ms", self.operation_name, duration.as_millis());
+        debug!(
+            "操作 '{}' 耗时 {} ms",
+            self.operation_name,
+            duration.as_millis()
+        );
     }
 }
 
@@ -538,12 +531,14 @@ mod tests {
 
         // 记录指标
         manager
-            .record_counter("test_counter", 1.0, vec![("label".to_string(), "value".to_string())])
+            .record_counter(
+                "test_counter",
+                1.0,
+                vec![("label".to_string(), "value".to_string())],
+            )
             .await;
 
-        manager
-            .record_gauge("test_gauge", 42.0, vec![])
-            .await;
+        manager.record_gauge("test_gauge", 42.0, vec![]).await;
 
         // 获取指标
         let metrics = manager.get_metrics().await;
@@ -575,9 +570,7 @@ mod tests {
     async fn test_metrics_export() {
         let manager = MonitoringManager::new(100, 1000);
 
-        manager
-            .record_counter("export_test", 42.0, vec![])
-            .await;
+        manager.record_counter("export_test", 42.0, vec![]).await;
 
         // JSON 导出
         let json = manager.export_metrics_json().await.unwrap();
@@ -596,7 +589,9 @@ mod tests {
         tokio::time::sleep(tokio::time::Duration::from_millis(20)).await;
         timer.complete().await;
 
-        let metrics = manager.get_metrics_by_name("slow_operation_test_operation").await;
+        let metrics = manager
+            .get_metrics_by_name("slow_operation_test_operation")
+            .await;
         assert!(!metrics.is_empty());
     }
 }

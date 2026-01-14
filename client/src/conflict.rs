@@ -83,12 +83,9 @@ impl ConflictResolver {
             ConflictType::ModifyModify => {
                 self.resolve_modify_modify(local_path, local_content, remote_content, base_content)
             }
-            ConflictType::ModifyDelete => self.resolve_modify_delete(
-                local_path,
-                local_content,
-                remote_content,
-                conflict_type,
-            ),
+            ConflictType::ModifyDelete => {
+                self.resolve_modify_delete(local_path, local_content, remote_content, conflict_type)
+            }
             ConflictType::BinaryConflict => Ok(MergeResult::Conflict(
                 "二进制文件冲突无法自动解决".to_string(),
             )),
@@ -131,9 +128,15 @@ impl ConflictResolver {
             _ => {
                 // 其他文件类型，使用默认策略
                 match self.default_strategy {
-                    ResolutionStrategy::KeepLocal => Ok(MergeResult::Merged(local_content.to_string())),
-                    ResolutionStrategy::KeepRemote => Ok(MergeResult::Merged(remote_content.to_string())),
-                    ResolutionStrategy::Manual => Ok(self.create_conflict_marker(local_content, remote_content)),
+                    ResolutionStrategy::KeepLocal => {
+                        Ok(MergeResult::Merged(local_content.to_string()))
+                    }
+                    ResolutionStrategy::KeepRemote => {
+                        Ok(MergeResult::Merged(remote_content.to_string()))
+                    }
+                    ResolutionStrategy::Manual => {
+                        Ok(self.create_conflict_marker(local_content, remote_content))
+                    }
                     _ => Ok(self.create_conflict_marker(local_content, remote_content)),
                 }
             }
@@ -163,12 +166,7 @@ impl ConflictResolver {
     }
 
     /// 合并文本文件（三方合并）
-    fn merge_text(
-        &self,
-        local: &str,
-        remote: &str,
-        base: Option<&str>,
-    ) -> Result<MergeResult> {
+    fn merge_text(&self, local: &str, remote: &str, base: Option<&str>) -> Result<MergeResult> {
         if let Some(base) = base {
             // 简化的三方合并：检查是否有冲突
             let local_differs = base != local;
@@ -195,17 +193,10 @@ impl ConflictResolver {
     }
 
     /// 合并 JSON 文件（结构化合并）
-    fn merge_json(
-        &self,
-        local: &str,
-        remote: &str,
-        base: Option<&str>,
-    ) -> Result<MergeResult> {
+    fn merge_json(&self, local: &str, remote: &str, base: Option<&str>) -> Result<MergeResult> {
         // 解析 JSON
-        let local_value: JsonValue =
-            serde_json::from_str(local).context("无法解析本地 JSON")?;
-        let remote_value: JsonValue =
-            serde_json::from_str(remote).context("无法解析远程 JSON")?;
+        let local_value: JsonValue = serde_json::from_str(local).context("无法解析本地 JSON")?;
+        let remote_value: JsonValue = serde_json::from_str(remote).context("无法解析远程 JSON")?;
 
         let merged = if let Some(base_str) = base {
             let base_value: JsonValue =
@@ -217,8 +208,7 @@ impl ConflictResolver {
         };
 
         // 格式化输出
-        let merged_str = serde_json::to_string_pretty(&merged)
-            .context("无法序列化合并的 JSON")?;
+        let merged_str = serde_json::to_string_pretty(&merged).context("无法序列化合并的 JSON")?;
 
         Ok(MergeResult::Merged(merged_str))
     }
@@ -232,7 +222,11 @@ impl ConflictResolver {
     ) -> Result<JsonValue> {
         match (base, local, remote) {
             // 都是对象，递归合并
-            (JsonValue::Object(base_map), JsonValue::Object(local_map), JsonValue::Object(remote_map)) => {
+            (
+                JsonValue::Object(base_map),
+                JsonValue::Object(local_map),
+                JsonValue::Object(remote_map),
+            ) => {
                 let mut merged = serde_json::Map::new();
 
                 // 收集所有键
@@ -299,7 +293,8 @@ impl ConflictResolver {
                 for (key, remote_value) in remote_map {
                     if let Some(local_value) = local_map.get(key.as_str()) {
                         // 键都存在，递归合并
-                        let merged_value = self.merge_json_values_without_base(local_value, remote_value)?;
+                        let merged_value =
+                            self.merge_json_values_without_base(local_value, remote_value)?;
                         merged.insert(key.clone(), merged_value);
                     } else {
                         // 只有远程有
@@ -315,17 +310,10 @@ impl ConflictResolver {
     }
 
     /// 合并 YAML 文件（转换为 JSON 后合并）
-    fn merge_yaml(
-        &self,
-        local: &str,
-        remote: &str,
-        base: Option<&str>,
-    ) -> Result<MergeResult> {
+    fn merge_yaml(&self, local: &str, remote: &str, base: Option<&str>) -> Result<MergeResult> {
         // 解析 YAML
-        let local_value: JsonValue =
-            serde_yaml::from_str(local).context("无法解析本地 YAML")?;
-        let remote_value: JsonValue =
-            serde_yaml::from_str(remote).context("无法解析远程 YAML")?;
+        let local_value: JsonValue = serde_yaml::from_str(local).context("无法解析本地 YAML")?;
+        let remote_value: JsonValue = serde_yaml::from_str(remote).context("无法解析远程 YAML")?;
 
         let merged = if let Some(base_str) = base {
             let base_value: JsonValue =
@@ -336,8 +324,7 @@ impl ConflictResolver {
         };
 
         // 格式化输出为 YAML
-        let merged_str = serde_yaml::to_string(&merged)
-            .context("无法序列化合并的 YAML")?;
+        let merged_str = serde_yaml::to_string(&merged).context("无法序列化合并的 YAML")?;
 
         Ok(MergeResult::Merged(merged_str))
     }
@@ -353,18 +340,10 @@ impl ConflictResolver {
     }
 
     /// 应用默认策略
-    pub fn apply_default_strategy(
-        &self,
-        local_content: &str,
-        remote_content: &str,
-    ) -> MergeResult {
+    pub fn apply_default_strategy(&self, local_content: &str, remote_content: &str) -> MergeResult {
         match self.default_strategy {
-            ResolutionStrategy::KeepLocal => {
-                MergeResult::Merged(local_content.to_string())
-            }
-            ResolutionStrategy::KeepRemote => {
-                MergeResult::Merged(remote_content.to_string())
-            }
+            ResolutionStrategy::KeepLocal => MergeResult::Merged(local_content.to_string()),
+            ResolutionStrategy::KeepRemote => MergeResult::Merged(remote_content.to_string()),
             _ => self.create_conflict_marker(local_content, remote_content),
         }
     }

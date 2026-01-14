@@ -214,12 +214,7 @@ impl TransferManager {
             progress.transferred_bytes += chunk.len() as u64;
             progress_callback(progress.clone());
 
-            debug!(
-                "上传分块 {}/{}: {} 字节",
-                i + 1,
-                total_chunks,
-                chunk.len()
-            );
+            debug!("上传分块 {}/{}: {} 字节", i + 1, total_chunks, chunk.len());
         }
 
         progress.is_completed = true;
@@ -228,8 +223,7 @@ impl TransferManager {
 
         info!(
             "文件上传完成: {:?}, 大小: {} 字节",
-            request.file_path,
-            request.file_size
+            request.file_path, request.file_size
         );
 
         Ok(progress)
@@ -298,9 +292,7 @@ impl TransferManager {
             let manager = self.clone_manager();
             let callback = progress_callback.clone();
 
-            let handle = tokio::spawn(async move {
-                manager.upload_file(request, callback).await
-            });
+            let handle = tokio::spawn(async move { manager.upload_file(request, callback).await });
 
             handles.push(handle);
         }
@@ -329,9 +321,8 @@ impl TransferManager {
             let manager = self.clone_manager();
             let callback = progress_callback.clone();
 
-            let handle = tokio::spawn(async move {
-                manager.download_file(request, callback).await
-            });
+            let handle =
+                tokio::spawn(async move { manager.download_file(request, callback).await });
 
             handles.push(handle);
         }
@@ -397,8 +388,7 @@ impl ResumableTransfer {
             tokio::fs::create_dir_all(parent).await?;
         }
 
-        let content = serde_json::to_string_pretty(state)
-            .context("无法序列化传输状态")?;
+        let content = serde_json::to_string_pretty(state).context("无法序列化传输状态")?;
 
         tokio::fs::write(&self.state_file, content)
             .await
@@ -417,8 +407,7 @@ impl ResumableTransfer {
             .await
             .with_context(|| format!("无法读取传输状态: {:?}", self.state_file))?;
 
-        let state = serde_json::from_str(&content)
-            .context("无法解析传输状态")?;
+        let state = serde_json::from_str(&content).context("无法解析传输状态")?;
 
         Ok(Some(state))
     }

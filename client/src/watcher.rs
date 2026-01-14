@@ -228,9 +228,7 @@ impl EventDeduplicator {
     /// 检查是否应该处理此事件
     fn should_process_event(&self, event: &Event) -> bool {
         match &event.kind {
-            EventKind::Create(_) |
-            EventKind::Modify(_) |
-            EventKind::Remove(_) => true,
+            EventKind::Create(_) | EventKind::Modify(_) | EventKind::Remove(_) => true,
             _ => false,
         }
     }
@@ -271,7 +269,11 @@ impl EventDeduplicator {
     }
 
     /// 创建防抖定时器
-    fn spawn_debounce_timer(&self, _path: PathBuf, event: FileEvent) -> tokio::task::JoinHandle<()> {
+    fn spawn_debounce_timer(
+        &self,
+        _path: PathBuf,
+        event: FileEvent,
+    ) -> tokio::task::JoinHandle<()> {
         let delay = Duration::from_millis(self.debounce_delay);
         let event_tx = self.event_tx.clone();
 
@@ -286,7 +288,9 @@ impl EventDeduplicator {
     }
 
     /// 启动批处理器（包装 Arc<TokioMutex<>>）
-    fn spawn_batch_processor_wrapper(deduplicator: Arc<TokioMutex<EventDeduplicator>>) -> tokio::task::JoinHandle<()> {
+    fn spawn_batch_processor_wrapper(
+        deduplicator: Arc<TokioMutex<EventDeduplicator>>,
+    ) -> tokio::task::JoinHandle<()> {
         tokio::spawn(async move {
             let batch_window = {
                 let dedup = deduplicator.lock().await;
@@ -405,8 +409,7 @@ impl FileScanner {
     pub fn hash_file(&self, path: &Path) -> Result<String> {
         use sha2::{Digest, Sha256};
 
-        let content = std::fs::read(path)
-            .with_context(|| format!("无法读取文件: {:?}", path))?;
+        let content = std::fs::read(path).with_context(|| format!("无法读取文件: {:?}", path))?;
 
         let mut hasher = Sha256::new();
         hasher.update(&content);
@@ -417,8 +420,8 @@ impl FileScanner {
 
     /// 获取文件元信息
     pub fn get_file_info(&self, path: &Path) -> Result<FileInfo> {
-        let metadata = std::fs::metadata(path)
-            .with_context(|| format!("无法获取文件元信息: {:?}", path))?;
+        let metadata =
+            std::fs::metadata(path).with_context(|| format!("无法获取文件元信息: {:?}", path))?;
 
         let modified = std::fs::metadata(path)
             .and_then(|m| m.modified())
@@ -522,12 +525,7 @@ mod tests {
         file.write_all(b"Hello, World!").unwrap();
 
         // 扫描文件
-        let scanner = FileScanner::new(
-            temp_dir.path().to_path_buf(),
-            vec![],
-            vec![],
-            vec![],
-        );
+        let scanner = FileScanner::new(temp_dir.path().to_path_buf(), vec![], vec![], vec![]);
 
         let files = scanner.scan().unwrap();
         assert_eq!(files.len(), 1);
@@ -544,12 +542,7 @@ mod tests {
         file.write_all(b"Hello, World!").unwrap();
 
         // 计算哈希
-        let scanner = FileScanner::new(
-            temp_dir.path().to_path_buf(),
-            vec![],
-            vec![],
-            vec![],
-        );
+        let scanner = FileScanner::new(temp_dir.path().to_path_buf(), vec![], vec![], vec![]);
 
         let hash1 = scanner.hash_file(&test_file).unwrap();
         let hash2 = scanner.hash_file(&test_file).unwrap();

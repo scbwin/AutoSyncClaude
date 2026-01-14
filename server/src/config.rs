@@ -28,8 +28,8 @@ pub struct DatabaseConfig {
     pub max_connections: u32,
     pub min_connections: u32,
     pub acquire_timeout: u64, // seconds
-    pub idle_timeout: u64, // seconds
-    pub max_lifetime: u64, // seconds
+    pub idle_timeout: u64,    // seconds
+    pub max_lifetime: u64,    // seconds
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -37,7 +37,7 @@ pub struct RedisConfig {
     pub url: String,
     pub max_connections: u32,
     pub connection_timeout: u64, // seconds
-    pub command_timeout: u64, // seconds
+    pub command_timeout: u64,    // seconds
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -53,7 +53,7 @@ pub struct MinioConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JwtConfig {
     pub secret: String,
-    pub access_token_expiration: u64, // seconds
+    pub access_token_expiration: u64,  // seconds
     pub refresh_token_expiration: u64, // seconds
     pub issuer: String,
 }
@@ -61,7 +61,7 @@ pub struct JwtConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SyncConfig {
     pub max_file_size: u64, // bytes
-    pub chunk_size: u64, // bytes
+    pub chunk_size: u64,    // bytes
     pub compression_enabled: bool,
     pub version_retention_days: u32,
     pub max_versions_per_file: u32,
@@ -84,7 +84,8 @@ impl Config {
             server: ServerConfig {
                 host: Self::get_env("SERVER_HOST", "0.0.0.0".to_string()),
                 port: Self::get_env("SERVER_PORT", "50051".to_string()).parse()?,
-                health_check_port: Self::get_env("HEALTH_CHECK_PORT", "8080".to_string()).parse()?,
+                health_check_port: Self::get_env("HEALTH_CHECK_PORT", "8080".to_string())
+                    .parse()?,
                 max_connections: Self::get_env("MAX_CONNECTIONS", "10000".to_string()).parse()?,
                 timeout: Self::get_env("SERVER_TIMEOUT", "30".to_string()).parse()?,
             },
@@ -101,8 +102,10 @@ impl Config {
             },
             redis: RedisConfig {
                 url: Self::get_env("REDIS_URL", "redis://127.0.0.1:6379".to_string()),
-                max_connections: Self::get_env("REDIS_MAX_CONNECTIONS", "20".to_string()).parse()?,
-                connection_timeout: Self::get_env("REDIS_CONNECTION_TIMEOUT", "5".to_string()).parse()?,
+                max_connections: Self::get_env("REDIS_MAX_CONNECTIONS", "20".to_string())
+                    .parse()?,
+                connection_timeout: Self::get_env("REDIS_CONNECTION_TIMEOUT", "5".to_string())
+                    .parse()?,
                 command_timeout: Self::get_env("REDIS_COMMAND_TIMEOUT", "5".to_string()).parse()?,
             },
             minio: MinioConfig {
@@ -130,9 +133,12 @@ impl Config {
             sync: SyncConfig {
                 max_file_size: Self::get_env("MAX_FILE_SIZE", "104857600".to_string()).parse()?, // 100MB
                 chunk_size: Self::get_env("CHUNK_SIZE", "4194304".to_string()).parse()?, // 4MB
-                compression_enabled: Self::get_env("COMPRESSION_ENABLED", "true".to_string()).parse()?,
-                version_retention_days: Self::get_env("VERSION_RETENTION_DAYS", "90".to_string()).parse()?,
-                max_versions_per_file: Self::get_env("MAX_VERSIONS_PER_FILE", "100".to_string()).parse()?,
+                compression_enabled: Self::get_env("COMPRESSION_ENABLED", "true".to_string())
+                    .parse()?,
+                version_retention_days: Self::get_env("VERSION_RETENTION_DAYS", "90".to_string())
+                    .parse()?,
+                max_versions_per_file: Self::get_env("MAX_VERSIONS_PER_FILE", "100".to_string())
+                    .parse()?,
             },
             logging: LoggingConfig {
                 level: Self::get_env("RUST_LOG", "info".to_string()),

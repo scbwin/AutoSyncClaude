@@ -57,15 +57,10 @@ pub enum OfflineOperation {
     },
 
     /// 文件下载
-    FileDownload {
-        path: String,
-        version: Option<i64>,
-    },
+    FileDownload { path: String, version: Option<i64> },
 
     /// 变更上报
-    ReportChanges {
-        changes: Vec<ChangeInfo>,
-    },
+    ReportChanges { changes: Vec<ChangeInfo> },
 }
 
 /// 变更信息
@@ -210,7 +205,12 @@ impl NetworkRecoveryManager {
                     return Ok(());
                 }
                 Err(e) => {
-                    warn!("重连失败 (尝试 {}/{}): {}", attempts, max_attempts, e.user_message());
+                    warn!(
+                        "重连失败 (尝试 {}/{}): {}",
+                        attempts,
+                        max_attempts,
+                        e.user_message()
+                    );
 
                     if attempts >= max_attempts {
                         self.set_status(NetworkStatus::Offline).await;
@@ -230,10 +230,7 @@ impl NetworkRecoveryManager {
     /// 添加离线操作到队列
     pub async fn queue_offline_operation(&self, operation: OfflineOperation) -> anyhow::Result<()> {
         self.offline_queue.push(operation).await.map_err(|e| {
-            ClientError::internal(
-                format!("无法添加离线操作: {}", e.user_message()),
-                None,
-            )
+            ClientError::internal(format!("无法添加离线操作: {}", e.user_message()), None)
         })?;
 
         debug!(
@@ -269,7 +266,11 @@ impl NetworkRecoveryManager {
     /// 处理单个离线操作
     async fn process_operation(&self, operation: OfflineOperation) -> Result<(), ClientError> {
         match operation {
-            OfflineOperation::FileUpload { path, hash: _, size: _ } => {
+            OfflineOperation::FileUpload {
+                path,
+                hash: _,
+                size: _,
+            } => {
                 info!("处理离线上传: {}", path);
                 // TODO: 实现实际的上传逻辑
                 Ok(())
@@ -290,9 +291,8 @@ impl NetworkRecoveryManager {
     /// 启动健康检查任务
     pub fn spawn_health_check_task(self: Arc<Self>) -> tokio::task::JoinHandle<()> {
         tokio::spawn(async move {
-            let mut interval = tokio::time::interval(Duration::from_secs(
-                self.health_check_interval_secs,
-            ));
+            let mut interval =
+                tokio::time::interval(Duration::from_secs(self.health_check_interval_secs));
 
             loop {
                 interval.tick().await;
@@ -373,7 +373,10 @@ mod tests {
             size: 1024,
         };
 
-        assert!(manager.queue_offline_operation(operation.clone()).await.is_ok());
+        assert!(manager
+            .queue_offline_operation(operation.clone())
+            .await
+            .is_ok());
         assert_eq!(manager.offline_queue.len().await, 1);
     }
 }

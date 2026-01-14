@@ -25,10 +25,7 @@ pub enum ClientError {
 
     /// gRPC 错误
     #[error("gRPC 错误: {code} - {message}")]
-    Grpc {
-        code: tonic::Code,
-        message: String,
-    },
+    Grpc { code: tonic::Code, message: String },
 
     /// 文件 I/O 错误
     #[error("文件错误: {path} - {message}")]
@@ -41,17 +38,11 @@ pub enum ClientError {
 
     /// 同步错误
     #[error("同步错误: {path} - {message}")]
-    Sync {
-        path: String,
-        message: String,
-    },
+    Sync { path: String, message: String },
 
     /// 冲突错误
     #[error("冲突错误: {path} - {message}")]
-    Conflict {
-        path: String,
-        message: String,
-    },
+    Conflict { path: String, message: String },
 
     /// 解析错误
     #[error("解析错误: {message}")]
@@ -93,23 +84,67 @@ pub enum ClientError {
 impl Clone for ClientError {
     fn clone(&self) -> Self {
         match self {
-            Self::Config { message } => Self::Config { message: message.clone() },
-            Self::Auth { message } => Self::Auth { message: message.clone() },
-            Self::Token { message } => Self::Token { message: message.clone() },
-            Self::Network { message, source: _ } => Self::Network { message: message.clone(), source: None },
-            Self::Grpc { code, message } => Self::Grpc { code: *code, message: message.clone() },
-            Self::File { path, message, source: _ } => Self::File { path: path.clone(), message: message.clone(), source: None },
-            Self::Sync { path, message } => Self::Sync { path: path.clone(), message: message.clone() },
-            Self::Conflict { path, message } => Self::Conflict { path: path.clone(), message: message.clone() },
-            Self::Parse { message, source: _ } => Self::Parse { message: message.clone(), source: None },
-            Self::Validation { message } => Self::Validation { message: message.clone() },
-            Self::Timeout { operation, timeout_secs } => Self::Timeout { operation: operation.clone(), timeout_secs: *timeout_secs },
-            Self::RetryExhausted { operation, max_retries, last_error } => Self::RetryExhausted {
+            Self::Config { message } => Self::Config {
+                message: message.clone(),
+            },
+            Self::Auth { message } => Self::Auth {
+                message: message.clone(),
+            },
+            Self::Token { message } => Self::Token {
+                message: message.clone(),
+            },
+            Self::Network { message, source: _ } => Self::Network {
+                message: message.clone(),
+                source: None,
+            },
+            Self::Grpc { code, message } => Self::Grpc {
+                code: *code,
+                message: message.clone(),
+            },
+            Self::File {
+                path,
+                message,
+                source: _,
+            } => Self::File {
+                path: path.clone(),
+                message: message.clone(),
+                source: None,
+            },
+            Self::Sync { path, message } => Self::Sync {
+                path: path.clone(),
+                message: message.clone(),
+            },
+            Self::Conflict { path, message } => Self::Conflict {
+                path: path.clone(),
+                message: message.clone(),
+            },
+            Self::Parse { message, source: _ } => Self::Parse {
+                message: message.clone(),
+                source: None,
+            },
+            Self::Validation { message } => Self::Validation {
+                message: message.clone(),
+            },
+            Self::Timeout {
+                operation,
+                timeout_secs,
+            } => Self::Timeout {
+                operation: operation.clone(),
+                timeout_secs: *timeout_secs,
+            },
+            Self::RetryExhausted {
+                operation,
+                max_retries,
+                last_error,
+            } => Self::RetryExhausted {
                 operation: operation.clone(),
                 max_retries: *max_retries,
                 last_error: last_error.clone(),
             },
-            Self::Internal { message, source: _ } => Self::Internal { message: message.clone(), source: None },
+            Self::Internal { message, source: _ } => Self::Internal {
+                message: message.clone(),
+                source: None,
+            },
         }
     }
 }
@@ -238,9 +273,12 @@ impl ClientError {
     pub fn is_retryable(&self) -> bool {
         matches!(
             self,
-            Self::Network { .. } |
-            Self::Grpc { code: tonic::Code::Unavailable | tonic::Code::DeadlineExceeded, .. } |
-            Self::Timeout { .. }
+            Self::Network { .. }
+                | Self::Grpc {
+                    code: tonic::Code::Unavailable | tonic::Code::DeadlineExceeded,
+                    ..
+                }
+                | Self::Timeout { .. }
         )
     }
 
@@ -261,10 +299,17 @@ impl ClientError {
             Self::Conflict { path, message } => format!("冲突 ({}): {}", path, message),
             Self::Parse { message, .. } => format!("解析失败：{}", message),
             Self::Validation { message } => format!("验证失败：{}", message),
-            Self::Timeout { operation, timeout_secs } => {
+            Self::Timeout {
+                operation,
+                timeout_secs,
+            } => {
                 format!("操作超时：{} 在 {} 秒后未完成", operation, timeout_secs)
             }
-            Self::RetryExhausted { operation, max_retries, .. } => {
+            Self::RetryExhausted {
+                operation,
+                max_retries,
+                ..
+            } => {
                 format!("重试失败：{} 在 {} 次重试后仍失败", operation, max_retries)
             }
             Self::Internal { message, .. } => format!("内部错误：{}", message),

@@ -151,22 +151,22 @@ impl SyncEngine {
         // 批量同步文件
         for file_path in files {
             match self.sync_file(&file_path).await {
-                Ok(state) => {
-                    match state.status {
-                        SyncStatus::Synced => {
-                            summary.synced_count += 1;
-                        }
-                        SyncStatus::Conflict => {
-                            summary.conflict_count += 1;
-                            summary.conflicts.push(file_path);
-                        }
-                        SyncStatus::Failed => {
-                            summary.failed_count += 1;
-                            summary.errors.push((file_path, state.error_message.unwrap_or_default()));
-                        }
-                        _ => {}
+                Ok(state) => match state.status {
+                    SyncStatus::Synced => {
+                        summary.synced_count += 1;
                     }
-                }
+                    SyncStatus::Conflict => {
+                        summary.conflict_count += 1;
+                        summary.conflicts.push(file_path);
+                    }
+                    SyncStatus::Failed => {
+                        summary.failed_count += 1;
+                        summary
+                            .errors
+                            .push((file_path, state.error_message.unwrap_or_default()));
+                    }
+                    _ => {}
+                },
                 Err(e) => {
                     error!("同步文件失败 {:?}: {}", file_path, e);
                     summary.failed_count += 1;
@@ -174,15 +174,20 @@ impl SyncEngine {
             }
         }
 
-        info!("全量同步完成: {} 成功, {} 失败, {} 冲突",
-            summary.synced_count, summary.failed_count, summary.conflict_count);
+        info!(
+            "全量同步完成: {} 成功, {} 失败, {} 冲突",
+            summary.synced_count, summary.failed_count, summary.conflict_count
+        );
 
         Ok(summary)
     }
 
     /// 处理文件事件
     async fn handle_file_event(&self, event: FileEvent) -> Result<()> {
-        debug!("处理文件事件: {:?}, 类型: {:?}", event.path, event.event_type);
+        debug!(
+            "处理文件事件: {:?}, 类型: {:?}",
+            event.path, event.event_type
+        );
 
         // 检查是否应该排除
         if self.config.should_exclude(&event.path) {
@@ -253,25 +258,20 @@ impl SyncEngine {
         };
 
         match sync_action {
-            SyncAction::Upload => {
-                self.upload_file(file_path, &local_hash).await
-            }
-            SyncAction::Download => {
-                self.download_file(file_path).await
-            }
+            SyncAction::Upload => self.upload_file(file_path, &local_hash).await,
+            SyncAction::Download => self.download_file(file_path).await,
             SyncAction::NeedSync => {
-                self.resolve_and_sync(file_path, &local_hash, remote_hash.as_ref().unwrap()).await
+                self.resolve_and_sync(file_path, &local_hash, remote_hash.as_ref().unwrap())
+                    .await
             }
-            SyncAction::NoAction => {
-                Ok(FileSyncState {
-                    path: file_path.to_path_buf(),
-                    local_hash: Some(local_hash),
-                    remote_hash,
-                    status: SyncStatus::Synced,
-                    last_sync_time: Some(Utc::now()),
-                    error_message: None,
-                })
-            }
+            SyncAction::NoAction => Ok(FileSyncState {
+                path: file_path.to_path_buf(),
+                local_hash: Some(local_hash),
+                remote_hash,
+                status: SyncStatus::Synced,
+                last_sync_time: Some(Utc::now()),
+                error_message: None,
+            }),
         }
     }
 

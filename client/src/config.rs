@@ -340,11 +340,9 @@ impl ClientConfig {
                 .with_context(|| format!("无法创建配置目录: {:?}", parent))?;
         }
 
-        let content = toml::to_string_pretty(self)
-            .context("无法序列化配置")?;
+        let content = toml::to_string_pretty(self).context("无法序列化配置")?;
 
-        std::fs::write(path, content)
-            .with_context(|| format!("无法写入配置文件: {:?}", path))?;
+        std::fs::write(path, content).with_context(|| format!("无法写入配置文件: {:?}", path))?;
 
         info!("配置已保存: {:?}", path);
 
@@ -369,20 +367,14 @@ impl ClientConfig {
 
         // 验证 Claude 目录
         if !self.sync.claude_dir.exists() {
-            anyhow::bail!(
-                "Claude 配置目录不存在: {:?}",
-                self.sync.claude_dir
-            );
+            anyhow::bail!("Claude 配置目录不存在: {:?}", self.sync.claude_dir);
         }
 
         // 验证冲突解决策略
         match self.conflict.default_strategy.as_str() {
             "manual" | "keep_local" | "keep_remote" | "keep_newer" => {}
             _ => {
-                anyhow::bail!(
-                    "无效的冲突解决策略: {}",
-                    self.conflict.default_strategy
-                );
+                anyhow::bail!("无效的冲突解决策略: {}", self.conflict.default_strategy);
             }
         }
 

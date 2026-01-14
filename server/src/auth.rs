@@ -56,13 +56,8 @@ impl AuthService {
         let password_hash = bcrypt::hash(&password, bcrypt::DEFAULT_COST)?;
 
         // 创建用户
-        let user = UserRepository::create(
-            self.pool.inner(),
-            &username,
-            &email,
-            &password_hash,
-        )
-        .await?;
+        let user =
+            UserRepository::create(self.pool.inner(), &username, &email, &password_hash).await?;
 
         info!("User registered successfully: {}", user.id);
 
@@ -81,7 +76,8 @@ impl AuthService {
         info!("Login attempt for: {}", email);
 
         // 查找用户
-        let user_row = UserRepository::find_by_email(self.pool.inner(), &email).await?
+        let user_row = UserRepository::find_by_email(self.pool.inner(), &email)
+            .await?
             .ok_or_else(|| anyhow::anyhow!("Invalid email or password"))?;
 
         if !user_row.is_active {
@@ -96,35 +92,36 @@ impl AuthService {
 
         // 查找或创建设备
         use crate::db::DeviceRepository;
-        let device = match DeviceRepository::find_by_fingerprint(self.pool.inner(), &device_fingerprint).await? {
-            Some(dev) => {
-                // 更新最后在线时间
-                DeviceRepository::update_last_seen(self.pool.inner(), &dev.id).await?;
-                dev
-            }
-            None => {
-                // 注册新设备
-                DeviceRepository::create(
-                    self.pool.inner(),
-                    &user_row.id,
-                    &device_name,
-                    device_type,
-                    &device_fingerprint,
-                )
+        let device =
+            match DeviceRepository::find_by_fingerprint(self.pool.inner(), &device_fingerprint)
                 .await?
-            }
-        };
+            {
+                Some(dev) => {
+                    // 更新最后在线时间
+                    DeviceRepository::update_last_seen(self.pool.inner(), &dev.id).await?;
+                    dev
+                }
+                None => {
+                    // 注册新设备
+                    DeviceRepository::create(
+                        self.pool.inner(),
+                        &user_row.id,
+                        &device_name,
+                        device_type,
+                        &device_fingerprint,
+                    )
+                    .await?
+                }
+            };
 
         // 生成 Token
-        let (access_token, refresh_token) = self.generate_tokens(
-            user_row.id,
-            Some(device.id),
-        )?;
+        let (access_token, refresh_token) = self.generate_tokens(user_row.id, Some(device.id))?;
 
         // 保存 Refresh Token 到数据库
         let token_hash = Self::hash_token(&refresh_token);
         let token_prefix = Self::generate_token_prefix(&refresh_token);
-        let expires_at = Utc::now() + Duration::seconds(self.config.jwt.refresh_token_expiration as i64);
+        let expires_at =
+            Utc::now() + Duration::seconds(self.config.jwt.refresh_token_expiration as i64);
 
         TokenRepository::save(
             self.pool.inner(),
@@ -160,7 +157,9 @@ impl AuthService {
 
         // 检查 Token 是否被撤销
         let token_hash = Self::hash_token(&refresh_token);
-        if let Some(token_record) = TokenRepository::find_by_hash(self.pool.inner(), &token_hash).await? {
+        if let Some(token_record) =
+            TokenRepository::find_by_hash(self.pool.inner(), &token_hash).await?
+        {
             if token_record.is_revoked || token_record.expires_at < Utc::now() {
                 return Err(anyhow::anyhow!("Refresh token has been revoked or expired"));
             }
@@ -169,13 +168,11 @@ impl AuthService {
         }
 
         // 生成新的 Access Token
-        let access_token = self.generate_token(
-            claims.user_id,
-            claims.device_id,
-            TokenType::Access,
-        )?;
+        let access_token =
+            self.generate_token(claims.user_id, claims.device_id, TokenType::Access)?;
 
-        let expires_at = Utc::now() + Duration::seconds(self.config.jwt.access_token_expiration as i64);
+        let expires_at =
+            Utc::now() + Duration::seconds(self.config.jwt.access_token_expiration as i64);
 
         Ok(TokenResponse {
             access_token,
@@ -192,7 +189,9 @@ impl AuthService {
 
         // 获取 Token 记录
         let token_hash = Self::hash_token(&refresh_token);
-        if let Some(token_record) = TokenRepository::find_by_hash(self.pool.inner(), &token_hash).await? {
+        if let Some(token_record) =
+            TokenRepository::find_by_hash(self.pool.inner(), &token_hash).await?
+        {
             // 撤销 Token
             TokenRepository::revoke(self.pool.inner(), &token_record.id).await?;
 
@@ -295,7 +294,9 @@ impl AuthService {
     /// 验证密码强度
     fn validate_password(password: &str) -> Result<()> {
         if password.len() < 8 {
-            return Err(anyhow::anyhow!("Password must be at least 8 characters long"));
+            return Err(anyhow::anyhow!(
+                "Password must be at least 8 characters long"
+            ));
         }
 
         // 可以添加更多密码强度验证

@@ -123,7 +123,11 @@ impl Cache {
     }
 
     /// 检查设备是否在线
-    pub async fn is_device_online(&self, device_id: &uuid::Uuid, user_id: &uuid::Uuid) -> Result<bool> {
+    pub async fn is_device_online(
+        &self,
+        device_id: &uuid::Uuid,
+        user_id: &uuid::Uuid,
+    ) -> Result<bool> {
         let key = format!("device:online:{}", user_id);
         let mut conn = self.pool.get().await?;
 
@@ -175,12 +179,7 @@ impl Cache {
     }
     /// ===== 通用缓存操作 =====
     /// 设置缓存
-    pub async fn set(
-        &self,
-        key: &str,
-        value: &str,
-        ttl: Option<Duration>,
-    ) -> Result<()> {
+    pub async fn set(&self, key: &str, value: &str, ttl: Option<Duration>) -> Result<()> {
         let mut conn = self.pool.get().await?;
 
         if let Some(ttl) = ttl {
