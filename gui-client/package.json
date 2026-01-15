@@ -18,6 +18,6 @@
   "author": "Claude Sync Team",
   "license": "MIT",
   "devDependencies": {
-    "@tauri-apps/cli": "^1.6.0"
+    "@tauri-apps/cli": "^1.6.3"
   }
 }

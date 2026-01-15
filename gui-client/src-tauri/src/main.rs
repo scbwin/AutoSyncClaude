@@ -26,7 +26,7 @@ async fn main() {
             app.manage(sync_state);
 
             // 启动后台同步任务（如果配置了自动启动）
-            let app_handle = handle.clone();
+            let _app_handle = handle.clone();
             tauri::async_runtime::spawn(async move {
                 // TODO: 根据配置决定是否自动启动同步
                 tracing::info!("GUI 应用已启动");

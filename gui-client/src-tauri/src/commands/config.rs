@@ -1,5 +1,4 @@
 use crate::config::ConfigManager;
-use crate::state::SyncState;
 use serde_json::Value;
 use std::sync::Arc;
 use tokio::sync::Mutex;

@@ -7,14 +7,14 @@ use tauri::State;
 
 #[tauri::command]
 pub async fn login(
-    email: String,
-    password: String,
-    device_name: Option<String>,
+    _email: String,
+    _password: String,
+    _device_name: Option<String>,
     config_manager: State<'_, Arc<Mutex<ConfigManager>>>,
-    sync_state: State<'_, Arc<Mutex<SyncState>>>,
+    _sync_state: State<'_, Arc<Mutex<SyncState>>>,
 ) -> Result<Value, String> {
     let manager = config_manager.lock().await;
-    let config = manager.get_config().await.map_err(|e| e.to_string())?;
+    let _config = manager.get_config().await.map_err(|e| e.to_string())?;
     drop(manager);
 
     // TODO: 调用实际的登录逻辑
@@ -32,8 +32,8 @@ pub async fn login(
 
 #[tauri::command]
 pub async fn logout(
-    config_manager: State<'_, Arc<Mutex<ConfigManager>>>,
-    sync_state: State<'_, Arc<Mutex<SyncState>>>,
+    _config_manager: State<'_, Arc<Mutex<ConfigManager>>>,
+    _sync_state: State<'_, Arc<Mutex<SyncState>>>,
 ) -> Result<(), String> {
     // TODO: 实现登出逻辑
     Ok(())
