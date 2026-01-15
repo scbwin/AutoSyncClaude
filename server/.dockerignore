@@ -5,6 +5,13 @@
 # Cargo
 target/
 
+# Docker
+Dockerfile
+.dockerignore
+
+# But keep proto directory
+!proto/
+
 # IDE
 .vscode
 .idea

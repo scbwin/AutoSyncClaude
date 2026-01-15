@@ -12,8 +12,11 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
-# Copy source code
-COPY . .
+# Copy proto files
+COPY proto /proto
+
+# Copy server source code
+COPY server .
 
 # Update dependencies to respect version constraints
 RUN cargo update
