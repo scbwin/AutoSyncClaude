@@ -39,6 +39,7 @@ minio_data/
 
 # 临时文件
 tmp*/
+tmpclaude*
 *.tmp
 *.bak
 
