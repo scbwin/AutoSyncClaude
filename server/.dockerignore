@@ -1,0 +1,29 @@
+# Git
+.git
+.gitignore
+
+# Cargo
+target/
+Cargo.lock
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Documentation
+*.md
+
+# SQLx data
+.sqlx
+
+# Test data
+test-data/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
