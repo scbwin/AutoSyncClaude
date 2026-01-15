@@ -341,26 +341,32 @@ jobs:
       working-directory: ./gui-client
       run: npm install
 
-    - name: Generate default icon (Linux)
+    - name: Generate source icon (Linux)
       if: runner.os == 'Linux'
       run: |
         # Install ImageMagick for icon generation
         sudo apt-get install -y imagemagick
 
-        # Create a simple 512x512 icon
-        cd gui-client/src-tauri/icons
-        convert -size 512x512 xc:'#1e1e1e' \
-          -fill '#6495ED' -draw 'circle 256,256 256,76' \
-          -fill '#1e1e1e' -draw 'circle 256,256 256,116' \
-          -fill white -pointsize 240 -font DejaVu-Sans -gravity center -annotate +0+0 'C' \
-          icon.png
+        # Create a 1024x1024 source PNG for Tauri icon generator
+        cd gui-client/src-tauri
+        convert -size 1024x1024 xc:'#1e1e1e' \
+          -fill '#6495ED' -draw 'circle 512,512 512,152' \
+          -fill '#1e1e1e' -draw 'circle 512,512 512,232' \
+          -fill white -pointsize 480 -font DejaVu-Sans -gravity center -annotate +0+0 'C' \
+          icon-source.png
 
-        ls -la icon.png
+        ls -la icon-source.png
 
-    - name: Generate default icon (Windows/macOS)
+    - name: Generate source icon (Windows/macOS)
       if: runner.os != 'Linux'
       working-directory: ./gui-client
-      run: node generate-icon.js
+      run: node generate-icon-source.js
+
+    - name: Generate platform-specific icons using Tauri CLI
+      working-directory: ./gui-client
+      run: |
+        npx tauri icon src-tauri/icon-source.png
+        ls -la src-tauri/icons/
 
     - name: Build GUI client
       working-directory: ./gui-client
