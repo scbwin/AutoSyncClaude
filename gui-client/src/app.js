@@ -435,6 +435,7 @@ function loadSettings() {
     const ui = state.config.ui || {};
 
     document.getElementById('serverAddress').value = server.address || 'http://localhost:50051';
+    document.getElementById('healthCheckAddress').value = server.health_check_address || 'http://localhost:8181';
     document.getElementById('serverTimeout').value = server.timeout || 30;
     document.getElementById('claudeDir').value = sync.claude_dir || '';
     document.getElementById('syncInterval').value = sync.interval || 60;
@@ -450,6 +451,7 @@ async function handleSaveSettings() {
     const newConfig = {
         server: {
             address: document.getElementById('serverAddress').value,
+            health_check_address: document.getElementById('healthCheckAddress').value,
             timeout: parseInt(document.getElementById('serverTimeout').value),
         },
         sync: {

@@ -30,6 +30,9 @@ pub struct NetworkRecoveryManager {
     /// gRPC 服务器地址
     server_address: String,
 
+    /// 健康检查地址
+    health_check_address: String,
+
     /// 重试配置
     retry_config: RetryConfig,
 
@@ -75,6 +78,7 @@ impl NetworkRecoveryManager {
     /// 创建新的网络恢复管理器
     pub fn new(
         server_address: String,
+        health_check_address: String,
         retry_config: RetryConfig,
         reconnect_interval_secs: u64,
         max_reconnect_attempts: usize,
@@ -82,6 +86,7 @@ impl NetworkRecoveryManager {
         Self {
             status: Arc::new(RwLock::new(NetworkStatus::Unknown)),
             server_address,
+            health_check_address,
             retry_config,
             reconnect_interval_secs,
             max_reconnect_attempts,
@@ -106,16 +111,15 @@ impl NetworkRecoveryManager {
 
     /// 检查网络连接
     pub async fn check_connection(&self) -> Result<(), ClientError> {
-        // TODO: 实现 actual health check
-        // 这里使用占位符实现
-
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(5))
             .build()
             .map_err(|e| ClientError::network("创建 HTTP 客户端失败", Some(Box::new(e))))?;
 
-        // 尝试连接健康检查端点
-        let health_url = format!("{}/health", self.server_address.replace("50051", "3000"));
+        // 使用配置的健康检查地址
+        let health_url = format!("{}/health", self.health_check_address);
+
+        debug!("检查健康检查端点: {}", health_url);
 
         match client.get(&health_url).send().await {
             Ok(response) => {
@@ -347,6 +351,7 @@ mod tests {
     async fn test_network_status() {
         let manager = NetworkRecoveryManager::new(
             "http://localhost:50051".to_string(),
+            "http://localhost:3000".to_string(),
             RetryConfig::default(),
             5,
             3,
@@ -362,6 +367,7 @@ mod tests {
     async fn test_offline_queue() {
         let manager = NetworkRecoveryManager::new(
             "http://localhost:50051".to_string(),
+            "http://localhost:3000".to_string(),
             RetryConfig::default(),
             5,
             3,
