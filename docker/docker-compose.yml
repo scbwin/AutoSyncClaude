@@ -56,10 +56,11 @@ services:
       - "${MINIO_CONSOLE_PORT:-9001}:9001"
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
+      test: ["CMD-SHELL", "mc ready local 2>/dev/null || exit 1"]
       interval: 30s
       timeout: 20s
-      retries: 3
+      retries: 5
+      start_period: 40s
     networks:
       - claude-sync-network
 
