@@ -15,6 +15,9 @@ WORKDIR /app
 # Copy source code
 COPY . .
 
+# Update dependencies to respect version constraints
+RUN cargo update
+
 # Build the application
 RUN cargo build --release
 
