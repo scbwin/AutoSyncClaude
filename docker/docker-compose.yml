@@ -56,7 +56,7 @@ services:
       - "${MINIO_CONSOLE_PORT:-9001}:9001"
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
+      test: ["CMD-SHELL", "timeout 5s bash -c ':> /dev/tcp/127.0.0.1/9000' || exit 1"]
       interval: 5s
       timeout: 5s
       retries: 5
