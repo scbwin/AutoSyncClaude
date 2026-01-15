@@ -65,6 +65,9 @@ sha2 = "0.10"
 # 类型转换
 async-trait = "0.1"
 
+# 锁定 home crate 版本以避免 edition2024 要求
+home = "0.5.9"
+
 [build-dependencies]
 tonic-build = "0.11"
 
