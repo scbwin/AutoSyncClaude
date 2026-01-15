@@ -364,14 +364,7 @@ jobs:
 
     - name: Generate platform-specific icons using Tauri CLI
       working-directory: ./gui-client
-      run: |
-        npx tauri icon src-tauri/icon-source.png
-        # List generated icons (cross-platform)
-        if [ "$RUNNER_OS" == "Linux" ]; then
-          ls -la src-tauri/icons/
-        else
-          ls src-tauri/icons/
-        fi
+      run: npx tauri icon src-tauri/icon-source.png
 
     - name: Build GUI client
       working-directory: ./gui-client
