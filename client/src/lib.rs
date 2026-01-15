@@ -1,8 +1,8 @@
 // Claude Sync Client Library
 
 pub mod config;
-pub mod connection_pool;
 pub mod conflict;
+pub mod connection_pool;
 pub mod error;
 pub mod grpc_client;
 pub mod monitoring;
