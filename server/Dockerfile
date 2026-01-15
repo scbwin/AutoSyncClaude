@@ -1,7 +1,7 @@
 # Multi-stage build for Rust application
 
 # Stage 1: Build stage (use nightly for edition2024 support)
-FROM rust:nightly-slim AS builder
+FROM rustlang/rust:nightly-bookworm-slim AS builder
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y \
