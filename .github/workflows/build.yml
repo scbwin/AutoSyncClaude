@@ -366,7 +366,12 @@ jobs:
       working-directory: ./gui-client
       run: |
         npx tauri icon src-tauri/icon-source.png
-        ls -la src-tauri/icons/
+        # List generated icons (cross-platform)
+        if [ "$RUNNER_OS" == "Linux" ]; then
+          ls -la src-tauri/icons/
+        else
+          ls src-tauri/icons/
+        fi
 
     - name: Build GUI client
       working-directory: ./gui-client
