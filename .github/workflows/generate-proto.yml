@@ -24,6 +24,11 @@ jobs:
           cd server
           cargo build
 
+      - name: Format generated proto files
+        run: |
+          cd server && cargo fmt
+          cd ../client && cargo fmt || true
+
       - name: Check generated files
         run: |
           echo "=== Server proto files ==="
