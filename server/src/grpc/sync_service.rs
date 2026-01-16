@@ -1,12 +1,12 @@
 use crate::cache::Cache;
 use crate::db::DbPool;
 use crate::proto::claude_sync::{
-    file_sync_service_server::FileSyncService, DownloadFileRequest, DownloadFileResponse,
-    FetchChangesRequest, FetchChangesResponse, FileChange, FileVersion, FullSyncRequest,
-    FullSyncResponse, GetFileHistoryRequest, GetFileHistoryResponse, IncrementalSyncRequest,
-    IncrementalSyncResponse, ReportChangesRequest, ReportChangesResponse, ResolveConflictRequest,
-    ResolveConflictResponse, RestoreFileVersionRequest, RestoreFileVersionResponse,
-    SyncComplete, SyncError, SyncProgress, UploadFileRequest, UploadFileResponse,
+    file_sync_service_server::FileSyncService, full_sync_response, incremental_sync_response,
+    DownloadFileRequest, DownloadFileResponse, FetchChangesRequest, FetchChangesResponse,
+    FullSyncRequest, FullSyncResponse, GetFileHistoryRequest, GetFileHistoryResponse,
+    IncrementalSyncRequest, IncrementalSyncResponse, ReportChangesRequest, ReportChangesResponse,
+    ResolveConflictRequest, ResolveConflictResponse, RestoreFileVersionRequest,
+    RestoreFileVersionResponse, SyncComplete, SyncProgress, UploadFileRequest, UploadFileResponse,
 };
 use crate::storage::StorageService;
 use std::pin::Pin;
@@ -101,13 +101,11 @@ impl FileSyncService for FileSyncGrpcService {
         let (tx, rx) = tokio::sync::mpsc::channel(1);
         let _ = tx
             .send(Ok(FullSyncResponse {
-                payload: Some(super::claude_sync::full_sync_response::Payload::Progress(
-                    SyncProgress {
-                        files_processed: 0,
-                        total_files: 0,
-                        current_file: String::new(),
-                    },
-                )),
+                payload: Some(full_sync_response::Payload::Progress(SyncProgress {
+                    files_processed: 0,
+                    total_files: 0,
+                    current_file: String::new(),
+                })),
             }))
             .await;
         Ok(Response::new(Box::pin(ReceiverStream::new(rx))))
@@ -124,14 +122,12 @@ impl FileSyncService for FileSyncGrpcService {
         let (tx, rx) = tokio::sync::mpsc::channel(1);
         let _ = tx
             .send(Ok(IncrementalSyncResponse {
-                payload: Some(
-                    super::claude_sync::incremental_sync_response::Payload::Complete(SyncComplete {
-                        files_uploaded: 0,
-                        files_downloaded: 0,
-                        files_failed: 0,
-                        conflicts_detected: 0,
-                    }),
-                ),
+                payload: Some(incremental_sync_response::Payload::Complete(SyncComplete {
+                    files_uploaded: 0,
+                    files_downloaded: 0,
+                    files_failed: 0,
+                    conflicts_detected: 0,
+                })),
             }))
             .await;
         Ok(Response::new(Box::pin(ReceiverStream::new(rx))))
