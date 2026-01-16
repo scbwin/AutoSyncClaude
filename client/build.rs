@@ -1,51 +1,39 @@
 use std::io::Result;
-use std::path::Path;
-use std::process::Command;
+use std::path::{Path, PathBuf};
+
+// 手动规范化路径，避免产生 Windows UNC 路径 (\\?\)
+fn normalize_path(path: &Path) -> PathBuf {
+    let mut result = PathBuf::new();
+    for component in path.components() {
+        use std::path::Component;
+        match component {
+            Component::Prefix(p) => result.push(p),
+            Component::RootDir => result.push(component.as_os_str()),
+            Component::Normal(s) => result.push(s),
+            Component::CurDir => {},
+            Component::ParentDir => {
+                if !result.pop() {
+                    result.push("..");
+                }
+            }
+        }
+    }
+    result
+}
 
 fn main() -> Result<()> {
     // 获取项目根目录（CARGO_MANIFEST_DIR 指向 client 目录）
     let manifest_dir = std::env::var("CARGO_MANIFEST_DIR")
         .expect("CARGO_MANIFEST_DIR 环境变量未设置");
 
-    // proto 文件位于 client 的父目录
-    let proto_dir = format!("{}/../proto", manifest_dir);
-    let proto_file = format!("{}/sync.proto", proto_dir);
-
-    // 规范化路径，解析 ..
-    let proto_dir = Path::new(&proto_dir).canonicalize()
-        .unwrap_or_else(|e| {
-            eprintln!("警告: 无法规范化 proto_dir: {}, 错误: {}", proto_dir, e);
-            Path::new(&proto_dir).to_path_buf()
-        });
+    // proto 文件位于 client 的父目录，手动规范化路径避免 UNC 格式
+    let proto_dir = normalize_path(Path::new(&manifest_dir).join("../proto"));
     let proto_file = proto_dir.join("sync.proto");
 
-    // 调试输出
-    eprintln!("CARGO_MANIFEST_DIR: {}", manifest_dir);
-    eprintln!("proto_dir (canonicalized): {}", proto_dir.display());
-    eprintln!("proto_file: {}", proto_file.display());
-    eprintln!("proto_file exists: {}", proto_file.exists());
-
-    // 检查 protoc 是否可用
-    let protoc_check = Command::new("protoc")
-        .arg("--version")
-        .output();
-    match protoc_check {
-        Ok(output) => {
-            eprintln!("protoc version: {}", String::from_utf8_lossy(&output.stdout));
-        }
-        Err(e) => {
-            eprintln!("警告: protoc 不可用: {}", e);
-        }
-    }
-
-    // 检查 out_dir 是否可创建
+    // 确保 out_dir 存在
     let out_dir = Path::new("src/proto");
-    eprintln!("out_dir: {}", out_dir.display());
-    eprintln!("out_dir exists: {}", out_dir.exists());
     if !out_dir.exists() {
-        if let Err(e) = std::fs::create_dir_all(out_dir) {
-            eprintln!("警告: 无法创建 out_dir: {}", e);
-        }
+        let _ = std::fs::create_dir_all(out_dir);
     }
 
     // 编译 Protocol Buffers 定义
