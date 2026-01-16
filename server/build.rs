@@ -31,20 +31,33 @@ fn main() -> Result<()> {
     let proto_dir = normalize_path(&proto_path);
     let proto_file = proto_dir.join("sync.proto");
 
-    // 确保 out_dir 存在
-    let out_dir = Path::new("src/proto");
-    if !out_dir.exists() {
-        let _ = std::fs::create_dir_all(out_dir);
+    // 使用 OUT_DIR 作为输出目录（Cargo 构建脚本的标准做法）
+    let out_dir = Path::new(&std::env::var("OUT_DIR").unwrap());
+
+    // 同时也复制到 src/proto 用于 IDE 支持
+    let src_proto_dir = Path::new(&manifest_dir).join("src/proto");
+    if !src_proto_dir.exists() {
+        let _ = std::fs::create_dir_all(&src_proto_dir);
     }
 
-    // 编译 Protocol Buffers 定义
+    // 编译 Protocol Buffers 定义到 OUT_DIR
     tonic_build::configure()
         .build_server(true)
         .build_client(true)
-        .out_dir("src/proto")
+        .out_dir(&out_dir)
         .compile(
             &[proto_file.to_str().unwrap()],
             &[proto_dir.to_str().unwrap()],
         )?;
+
+    // 将生成的文件复制到 src/proto 供 IDE 使用
+    let generated_file = out_dir.join("sync.rs");
+    if generated_file.exists() {
+        let _ = std::fs::copy(generated_file, src_proto_dir.join("sync.rs"));
+    }
+
+    // 重新运行此构建脚本如果 proto 文件发生变化
+    println!("cargo:rerun-if-changed=../proto/sync.proto");
+
     Ok(())
 }
