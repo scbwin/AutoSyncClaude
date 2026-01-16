@@ -2,9 +2,14 @@ use crate::auth::AuthService;
 use crate::cache::Cache;
 use crate::config::Config;
 use crate::db::DbPool;
-
-// 生成的 gRPC 代码（将在构建 protobuf 后生成）
-// 这里先定义占位符结构
+use crate::proto::claude_sync::{
+    auth_service_server::AuthService, LoginRequest as ProtoLoginRequest,
+    LoginResponse as ProtoLoginResponse, LogoutRequest, LogoutResponse,
+    RefreshTokenRequest, RefreshTokenResponse, RegisterRequest as ProtoRegisterRequest,
+    RegisterResponse as ProtoRegisterResponse, RevokeTokenRequest, RevokeTokenResponse,
+};
+use std::str::FromStr;
+use tonic::{Request, Response, Status};
 
 /// AuthService gRPC 实现
 pub struct AuthGrpcService {
@@ -19,21 +24,21 @@ impl AuthGrpcService {
     }
 }
 
-// 注意：这些实现需要在 protobuf 代码生成后才能工作
-// 这里提供实现的框架
-
-/*
 #[tonic::async_trait]
 impl AuthService for AuthGrpcService {
     async fn register(
         &self,
-        request: Request<RegisterRequest>,
-    ) -> Result<Response<RegisterResponse>, Status> {
+        request: Request<ProtoRegisterRequest>,
+    ) -> Result<Response<ProtoRegisterResponse>, Status> {
         let req = request.into_inner();
 
         // 调用认证服务
-        match self.auth_service.register(req.username, req.email, req.password).await {
-            Ok((user_id, email)) => Ok(Response::new(RegisterResponse {
+        match self
+            .auth_service
+            .register(req.username, req.email, req.password)
+            .await
+        {
+            Ok((user_id, _email)) => Ok(Response::new(ProtoRegisterResponse {
                 success: true,
                 message: "Registration successful".to_string(),
                 user_id: user_id.to_string(),
@@ -47,8 +52,8 @@ impl AuthService for AuthGrpcService {
 
     async fn login(
         &self,
-        request: Request<LoginRequest>,
-    ) -> Result<Response<LoginResponse>, Status> {
+        request: Request<ProtoLoginRequest>,
+    ) -> Result<Response<ProtoLoginResponse>, Status> {
         let req = request.into_inner();
 
         match self
@@ -62,7 +67,7 @@ impl AuthService for AuthGrpcService {
             )
             .await
         {
-            Ok(result) => Ok(Response::new(LoginResponse {
+            Ok(result) => Ok(Response::new(ProtoLoginResponse {
                 success: true,
                 message: "Login successful".to_string(),
                 access_token: result.access_token,
@@ -127,7 +132,7 @@ impl AuthService for AuthGrpcService {
         let req = request.into_inner();
 
         // 解析 Token ID
-        let token_id = uuid::Uuid::parse_str(&req.token_id)
+        let token_id = uuid::Uuid::from_str(&req.token_id)
             .map_err(|_| Status::invalid_argument("Invalid token ID"))?;
 
         // 计算过期时间（假设 30 天后过期）
@@ -149,7 +154,6 @@ impl AuthService for AuthGrpcService {
         }
     }
 }
-*/
 
 #[cfg(test)]
 mod tests {

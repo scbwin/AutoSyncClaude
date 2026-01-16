@@ -4,10 +4,16 @@ use crate::db::DbPool;
 use crate::grpc::{
     AuthGrpcService, DeviceGrpcService, FileSyncGrpcService, NotificationGrpcService,
 };
+use crate::proto::claude_sync::{
+    auth_service_server::AuthServiceServer, device_service_server::DeviceServiceServer,
+    file_sync_service_server::FileSyncServiceServer,
+    notification_service_server::NotificationServiceServer,
+};
 use crate::storage::StorageService;
 use anyhow::Result;
 use std::net::SocketAddr;
-use tracing::info;
+use tonic::transport::Server;
+use tracing::{error, info};
 
 /// gRPC 服务器
 pub struct GrpcServer {
@@ -62,18 +68,17 @@ impl GrpcServer {
         info!("🚀 Starting gRPC server on {}", addr);
 
         // 创建 gRPC 服务实例
-        let _auth_service =
+        let auth_service =
             AuthGrpcService::new(self.pool.clone(), self.cache.clone(), self.config.clone());
 
-        let _device_service = DeviceGrpcService::new(self.pool.clone());
+        let device_service = DeviceGrpcService::new(self.pool.clone());
 
-        let _sync_service =
+        let sync_service =
             FileSyncGrpcService::new(self.pool.clone(), self.cache.clone(), self.storage);
 
-        let _notification_service = NotificationGrpcService::new(self.pool, self.cache);
+        let notification_service = NotificationGrpcService::new(self.pool, self.cache);
 
-        // TODO: 取消注释下面的代码（需要等待 protobuf 生成）
-        /*
+        // 启动 gRPC 服务器
         let addr = SocketAddr::from(addr);
 
         let svc = Server::builder()
@@ -104,25 +109,6 @@ impl GrpcServer {
                 Ok(())
             }
         }
-        */
-
-        // 临时实现：模拟服务器启动
-        info!("⚠ gRPC services initialized but not started");
-        info!("   Services ready:");
-        info!("   - AuthService");
-        info!("   - DeviceService");
-        info!("   - FileSyncService");
-        info!("   - NotificationService");
-        info!("\n💡 To start the actual server:");
-        info!("   1. Compile protobuf definitions: cd proto && ./build.sh");
-        info!("   2. Uncomment server code in src/server.rs");
-        info!("   3. Run: cargo run");
-
-        // 模拟等待信号
-        Self::shutdown_signal().await?;
-        info!("Shutting down...");
-
-        Ok(())
     }
 
     /// 等待关闭信号

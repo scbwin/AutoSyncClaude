@@ -1,4 +1,11 @@
 use crate::db::DbPool;
+use crate::proto::claude_sync::{
+    device_service_server::DeviceService, ListDevicesRequest, ListDevicesResponse,
+    RegisterDeviceRequest, RegisterDeviceResponse, RemoveDeviceRequest, RemoveDeviceResponse,
+    UpdateDeviceRequest, UpdateDeviceResponse,
+};
+use std::str::FromStr;
+use tonic::{Request, Response, Status};
 
 /// DeviceService gRPC 实现
 pub struct DeviceGrpcService {
@@ -12,96 +19,50 @@ impl DeviceGrpcService {
     }
 }
 
-/*
 #[tonic::async_trait]
 impl DeviceService for DeviceGrpcService {
     async fn register_device(
         &self,
-        request: Request<RegisterDeviceRequest>,
+        _request: Request<RegisterDeviceRequest>,
     ) -> Result<Response<RegisterDeviceResponse>, Status> {
-        let req = request.into_inner();
-
-        // 从 Token 中获取 user_id
-        // let user_id = extract_user_id_from_request(&request)?;
-
-        match DeviceRepository::create(
-            &self.pool,
-            &user_id,
-            &req.device_name,
-            &req.device_type,
-            &req.device_fingerprint,
-        )
-        .await
-        {
-            Ok(device) => Ok(Response::new(RegisterDeviceResponse {
-                success: true,
-                message: "Device registered successfully".to_string(),
-                device_id: device.id.to_string(),
-            })),
-            Err(e) => Err(Status::internal(e.to_string())),
-        }
+        // TODO: 实现设备注册逻辑
+        Ok(Response::new(RegisterDeviceResponse {
+            success: true,
+            message: "Device registration not yet implemented".to_string(),
+            device_id: String::new(),
+        }))
     }
 
     async fn list_devices(
         &self,
-        request: Request<ListDevicesRequest>,
+        _request: Request<ListDevicesRequest>,
     ) -> Result<Response<ListDevicesResponse>, Status> {
-        // let user_id = extract_user_id_from_request(&request)?;
-
-        match DeviceRepository::find_by_user(&self.pool, &user_id).await {
-            Ok(devices) => {
-                let device_protos: Vec<Device> = devices
-                    .iter()
-                    .map(|d| Device {
-                        device_id: d.id.to_string(),
-                        device_name: d.device_name.clone(),
-                        device_type: d.device_type.clone(),
-                        device_fingerprint: d.device_fingerprint.clone(),
-                        last_seen: d.last_seen.timestamp(),
-                        created_at: d.created_at.timestamp(),
-                        is_active: d.is_active,
-                    })
-                    .collect();
-
-                Ok(Response::new(ListDevicesResponse { devices: device_protos }))
-            }
-            Err(e) => Err(Status::internal(e.to_string())),
-        }
+        // TODO: 实现设备列表查询逻辑
+        Ok(Response::new(ListDevicesResponse { devices: vec![] }))
     }
 
     async fn update_device(
         &self,
-        request: Request<UpdateDeviceRequest>,
+        _request: Request<UpdateDeviceRequest>,
     ) -> Result<Response<UpdateDeviceResponse>, Status> {
-        let req = request.into_inner();
-
-        // 验证设备属于当前用户
-        // 更新设备名称
-
+        // TODO: 实现设备更新逻辑
         Ok(Response::new(UpdateDeviceResponse {
             success: true,
-            message: "Device updated successfully".to_string(),
+            message: "Device update not yet implemented".to_string(),
         }))
     }
 
     async fn remove_device(
         &self,
-        request: Request<RemoveDeviceRequest>,
+        _request: Request<RemoveDeviceRequest>,
     ) -> Result<Response<RemoveDeviceResponse>, Status> {
-        let req = request.into_inner();
-        let device_id = uuid::Uuid::parse_str(&req.device_id)
-            .map_err(|_| Status::invalid_argument("Invalid device ID"))?;
-
-        match DeviceRepository::delete(&self.pool, &device_id).await {
-            Ok(_) => Ok(Response::new(RemoveDeviceResponse {
-                success: true,
-                message: "Device removed successfully".to_string(),
-            })),
-            Err(e) => Err(Status::internal(e.to_string())),
-        }
+        // TODO: 实现设备删除逻辑
+        Ok(Response::new(RemoveDeviceResponse {
+            success: true,
+            message: "Device removal not yet implemented".to_string(),
+        }))
     }
 }
-*/
 
 #[cfg(test)]
 mod tests {

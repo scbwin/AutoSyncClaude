@@ -5,6 +5,7 @@ mod db;
 mod grpc;
 mod health;
 mod models;
+mod proto; // 生成的 protobuf 代码
 mod server;
 mod storage;
 
@@ -58,8 +59,6 @@ async fn main() -> Result<()> {
 
     info!("✓ Health check server started on {}", health_addr_for_log);
 
-    // TODO: 取消注释下面的代码（需要等待 protobuf 生成）
-    /*
     // 启动 gRPC 服务器
     info!("🎯 Starting gRPC server on {}...", config.server_address());
 
@@ -69,33 +68,6 @@ async fn main() -> Result<()> {
     }
 
     info!("✓ gRPC server started successfully");
-    */
-
-    // 临时实现：显示服务就绪状态
-    info!("\n🎉 Server initialization completed!");
-    info!("📊 Server Status:");
-    info!("  ✓ Database: Connected and healthy");
-    info!("  ✓ Redis: Connected and healthy");
-    info!("  ✓ MinIO: Connected and healthy");
-    info!("  ✓ Health Check: Running on {}", health_addr_for_log);
-    info!("\n⚠️  gRPC Server: Services initialized but not started");
-    info!("   Ready services:");
-    info!("   - AuthService");
-    info!("   - DeviceService");
-    info!("   - FileSyncService");
-    info!("   - NotificationService");
-    info!("\n💡 To start the actual gRPC server:");
-    info!("   1. Compile protobuf definitions: cd proto && ./build.sh");
-    info!("   2. Uncomment server code in src/server.rs and src/main.rs");
-    info!("   3. Rebuild: cargo build --release");
-    info!("   4. Run: cargo run --release");
-
-    // 等待关闭信号
-    tokio::signal::ctrl_c().await?;
-    info!("\n👋 Received shutdown signal, shutting down gracefully...");
-
-    // TODO: 添加优雅关闭逻辑
-    info!("✓ Shutdown complete");
 
     Ok(())
 }
