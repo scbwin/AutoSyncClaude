@@ -50,3 +50,8 @@ Thumbs.db
 # Claude Sync 特定
 .claude-sync/
 *.toml.local
+
+# Ignore all target directories
+target/
+**/target/
+
