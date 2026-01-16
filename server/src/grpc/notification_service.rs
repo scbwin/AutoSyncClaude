@@ -29,7 +29,7 @@ impl NotificationService for NotificationGrpcService {
     async fn subscribe_changes(
         &self,
         _request: Request<SubscribeChangesRequest>,
-    ) -> Result<Response<SubscribeChangesStream>, Status> {
+    ) -> Result<Response<Self::SubscribeChangesStream>, Status> {
         // TODO: 实现变更订阅逻辑
         let (tx, rx) = tokio::sync::mpsc::channel(1);
         let _ = tx
@@ -48,7 +48,7 @@ impl NotificationService for NotificationGrpcService {
     async fn heartbeat(
         &self,
         _request: Request<tonic::Streaming<HeartbeatRequest>>,
-    ) -> Result<Response<HeartbeatStream>, Status> {
+    ) -> Result<Response<Self::HeartbeatStream>, Status> {
         // TODO: 实现心跳保活逻辑
         let (tx, rx) = tokio::sync::mpsc::channel(1);
         let _ = tx
