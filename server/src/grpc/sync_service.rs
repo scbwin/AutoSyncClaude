@@ -150,9 +150,7 @@ impl FileSyncService for FileSyncGrpcService {
         _request: Request<GetFileHistoryRequest>,
     ) -> Result<Response<GetFileHistoryResponse>, Status> {
         // TODO: 实现文件历史获取逻辑
-        Ok(Response::new(GetFileHistoryResponse {
-            versions: vec![],
-        }))
+        Ok(Response::new(GetFileHistoryResponse { versions: vec![] }))
     }
 
     async fn restore_file_version(

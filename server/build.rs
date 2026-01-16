@@ -4,8 +4,7 @@ use std::path::{Path, PathBuf};
 
 fn main() -> Result<()> {
     // 获取项目根目录
-    let manifest_dir =
-        std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set");
+    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set");
 
     // 构建 proto 文件路径（相对于项目根目录）
     let proto_file = format!("{}/../proto/sync.proto", manifest_dir);

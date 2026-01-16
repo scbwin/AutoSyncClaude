@@ -4,8 +4,8 @@ use crate::config::Config;
 use crate::db::DbPool;
 use crate::proto::claude_sync::{
     auth_service_server::AuthService as AuthServiceTrait, LoginRequest as ProtoLoginRequest,
-    LoginResponse as ProtoLoginResponse, LogoutRequest, LogoutResponse,
-    RefreshTokenRequest, RefreshTokenResponse, RegisterRequest as ProtoRegisterRequest,
+    LoginResponse as ProtoLoginResponse, LogoutRequest, LogoutResponse, RefreshTokenRequest,
+    RefreshTokenResponse, RegisterRequest as ProtoRegisterRequest,
     RegisterResponse as ProtoRegisterResponse, RevokeTokenRequest, RevokeTokenResponse,
 };
 use std::str::FromStr;
@@ -89,11 +89,7 @@ impl AuthServiceTrait for AuthGrpcService {
     ) -> Result<Response<RefreshTokenResponse>, Status> {
         let req = request.into_inner();
 
-        match self
-            .auth_service
-            .refresh_token(req.refresh_token)
-            .await
-        {
+        match self.auth_service.refresh_token(req.refresh_token).await {
             Ok(response) => Ok(Response::new(RefreshTokenResponse {
                 success: true,
                 message: "Token refreshed successfully".to_string(),
@@ -138,11 +134,7 @@ impl AuthServiceTrait for AuthGrpcService {
         // 计算过期时间（假设 30 天后过期）
         let expires_at = chrono::Utc::now().timestamp() + (30 * 24 * 60 * 60);
 
-        match self
-            .auth_service
-            .revoke_token(token_id, expires_at)
-            .await
-        {
+        match self.auth_service.revoke_token(token_id, expires_at).await {
             Ok(_) => Ok(Response::new(RevokeTokenResponse {
                 success: true,
                 message: "Token revoked successfully".to_string(),
