@@ -5,9 +5,9 @@ mod db;
 mod grpc;
 mod health;
 mod models;
-// proto 模块由 build.rs 在构建时生成
-#[path = "proto/mod.rs"]
-mod proto;
+// proto 模块由 build.rs 在构建时生成，直接引用生成的文件
+#[path = "src/proto/sync.rs"]
+mod sync;
 mod server;
 mod storage;
 

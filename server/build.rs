@@ -37,17 +37,6 @@ fn main() -> Result<()> {
         let _ = std::fs::create_dir_all(out_dir);
     }
 
-    // 生成 proto/mod.rs 文件
-    let mod_rs_path = out_dir.join("mod.rs");
-    let mod_content = r#"// 此文件由 build.rs 自动生成
-// 请勿手动编辑
-
-// 引入 tonic-build 生成的 protobuf 代码
-// sync.proto 会生成 sync.rs，其中包含 claude_sync 模块
-pub mod sync;
-"#;
-    std::fs::write(&mod_rs_path, mod_content).expect("无法写入 proto/mod.rs");
-
     // 编译 Protocol Buffers 定义
     tonic_build::configure()
         .build_server(true)

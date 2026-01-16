@@ -1,6 +1,6 @@
 use crate::cache::Cache;
 use crate::db::DbPool;
-use crate::proto::sync::claude_sync::{
+use crate::sync::claude_sync::{
     notification_service_server::NotificationService, ChangeNotification, HeartbeatRequest,
     HeartbeatResponse, SubscribeChangesRequest,
 };
