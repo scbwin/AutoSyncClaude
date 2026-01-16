@@ -1,6 +1,6 @@
 use crate::cache::Cache;
 use crate::db::DbPool;
-use crate::sync::claude_sync::{
+use crate::claude_sync::{
     notification_service_server::NotificationService, ChangeNotification, HeartbeatRequest,
     HeartbeatResponse, SubscribeChangesRequest,
 };
@@ -29,7 +29,7 @@ impl NotificationService for NotificationGrpcService {
     async fn subscribe_changes(
         &self,
         _request: Request<SubscribeChangesRequest>,
-    ) -> Result<Response<Self::SubscribeChangesStream>, Status> {
+    ) -> Result<Response<SubscribeChangesStream>, Status> {
         // TODO: 实现变更订阅逻辑
         let (tx, rx) = tokio::sync::mpsc::channel(1);
         let _ = tx
@@ -48,7 +48,7 @@ impl NotificationService for NotificationGrpcService {
     async fn heartbeat(
         &self,
         _request: Request<tonic::Streaming<HeartbeatRequest>>,
-    ) -> Result<Response<Self::HeartbeatStream>, Status> {
+    ) -> Result<Response<HeartbeatStream>, Status> {
         // TODO: 实现心跳保活逻辑
         let (tx, rx) = tokio::sync::mpsc::channel(1);
         let _ = tx

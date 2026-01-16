@@ -1,5 +1,5 @@
 use crate::db::DbPool;
-use crate::sync::claude_sync::{
+use crate::claude_sync::{
     device_service_server::DeviceService, ListDevicesRequest, ListDevicesResponse,
     RegisterDeviceRequest, RegisterDeviceResponse, RemoveDeviceRequest, RemoveDeviceResponse,
     UpdateDeviceRequest, UpdateDeviceResponse,

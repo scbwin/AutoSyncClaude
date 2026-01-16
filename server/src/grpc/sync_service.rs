@@ -1,6 +1,6 @@
 use crate::cache::Cache;
 use crate::db::DbPool;
-use crate::sync::claude_sync::{
+use crate::claude_sync::{
     file_sync_service_server::FileSyncService, DownloadFileResponse, FetchChangesRequest,
     FetchChangesResponse, ReportChangesRequest, ReportChangesResponse, ResolveConflictRequest,
     ResolveConflictResponse, RestoreFileVersionRequest, RestoreFileVersionResponse,
@@ -48,7 +48,7 @@ impl FileSyncService for FileSyncGrpcService {
     async fn fetch_changes(
         &self,
         _request: Request<FetchChangesRequest>,
-    ) -> Result<Response<Self::FetchChangesStream>, Status> {
+    ) -> Result<Response<FetchChangesStream>, Status> {
         // TODO: 实现变更获取逻辑
         let (tx, rx) = tokio::sync::mpsc::channel(1);
         let _ = tx
@@ -66,7 +66,7 @@ impl FileSyncService for FileSyncGrpcService {
     async fn upload_file(
         &self,
         _request: Request<tonic::Streaming<UploadFileRequest>>,
-    ) -> Result<Response<Self::UploadFileStream>, Status> {
+    ) -> Result<Response<UploadFileStream>, Status> {
         // TODO: 实现文件上传逻辑
         let (tx, rx) = tokio::sync::mpsc::channel(1);
         let _ = tx
@@ -86,7 +86,7 @@ impl FileSyncService for FileSyncGrpcService {
     async fn download_file(
         &self,
         _request: Request<tonic::Streaming<UploadFileRequest>>,
-    ) -> Result<Response<Self::DownloadFileStream>, Status> {
+    ) -> Result<Response<DownloadFileStream>, Status> {
         // TODO: 实现文件下载逻辑
         let (tx, rx) = tokio::sync::mpsc::channel(1);
         let _ = tx

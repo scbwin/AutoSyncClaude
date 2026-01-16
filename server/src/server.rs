@@ -4,7 +4,7 @@ use crate::db::DbPool;
 use crate::grpc::{
     AuthGrpcService, DeviceGrpcService, FileSyncGrpcService, NotificationGrpcService,
 };
-use crate::sync::claude_sync::{
+use crate::claude_sync::{
     auth_service_server::AuthServiceServer, device_service_server::DeviceServiceServer,
     file_sync_service_server::FileSyncServiceServer,
     notification_service_server::NotificationServiceServer,
