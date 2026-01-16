@@ -1,6 +1,0 @@
-# Rustfmt configuration
-
-# Skip generated proto files
-ignore = [
-    "src/proto/claude_sync.rs",
-]

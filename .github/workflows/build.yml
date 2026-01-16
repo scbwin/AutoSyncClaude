@@ -206,6 +206,11 @@ jobs:
       working-directory: ./client
       run: cargo build
 
+    - name: Format all code (including generated proto files)
+      run: |
+        cd server && cargo fmt
+        cd ../client && cargo fmt
+
     - name: Check formatting
       run: |
         cd server && cargo fmt -- --check
