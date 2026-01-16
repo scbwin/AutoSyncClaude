@@ -5,7 +5,9 @@ mod db;
 mod grpc;
 mod health;
 mod models;
-mod proto; // 生成的 protobuf 代码
+// proto 模块由 build.rs 在构建时生成
+#[path = "proto/mod.rs"]
+mod proto;
 mod server;
 mod storage;
 

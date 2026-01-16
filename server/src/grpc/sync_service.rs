@@ -1,10 +1,8 @@
 use crate::cache::Cache;
 use crate::db::DbPool;
-use crate::proto::claude_sync::{
-    download_file_request::DownloadFileRequest, download_file_response::Payload,
-    file_sync_service_server::FileSyncService, upload_file_request::Payload as UploadPayload,
-    DownloadFileResponse, FetchChangesRequest, FetchChangesResponse, FileChunk,
-    ReportChangesRequest, ReportChangesResponse, ResolveConflictRequest,
+use crate::proto::sync::claude_sync::{
+    file_sync_service_server::FileSyncService, DownloadFileResponse, FetchChangesRequest,
+    FetchChangesResponse, ReportChangesRequest, ReportChangesResponse, ResolveConflictRequest,
     ResolveConflictResponse, RestoreFileVersionRequest, RestoreFileVersionResponse,
     UploadFileRequest, UploadFileResponse,
 };
@@ -44,7 +42,8 @@ impl FileSyncService for FileSyncGrpcService {
         }))
     }
 
-    type FetchChangesStream = tokio_stream::wrappers::ReceiverStream<Result<FetchChangesResponse, Status>>;
+    type FetchChangesStream =
+        tokio_stream::wrappers::ReceiverStream<Result<FetchChangesResponse, Status>>;
 
     async fn fetch_changes(
         &self,
@@ -61,7 +60,8 @@ impl FileSyncService for FileSyncGrpcService {
         Ok(Response::new(tokio_stream::wrappers::ReceiverStream::new(rx)))
     }
 
-    type UploadFileStream = tokio_stream::wrappers::ReceiverStream<Result<UploadFileResponse, Status>>;
+    type UploadFileStream =
+        tokio_stream::wrappers::ReceiverStream<Result<UploadFileResponse, Status>>;
 
     async fn upload_file(
         &self,
@@ -80,15 +80,18 @@ impl FileSyncService for FileSyncGrpcService {
         Ok(Response::new(tokio_stream::wrappers::ReceiverStream::new(rx)))
     }
 
-    type DownloadFileStream = tokio_stream::wrappers::ReceiverStream<Result<DownloadFileResponse, Status>>;
+    type DownloadFileStream =
+        tokio_stream::wrappers::ReceiverStream<Result<DownloadFileResponse, Status>>;
 
     async fn download_file(
         &self,
-        _request: Request<DownloadFileRequest>,
+        _request: Request<tonic::Streaming<UploadFileRequest>>,
     ) -> Result<Response<Self::DownloadFileStream>, Status> {
         // TODO: 实现文件下载逻辑
         let (tx, rx) = tokio::sync::mpsc::channel(1);
-        let _ = tx.send(Ok(DownloadFileResponse { payload: None })).await;
+        let _ = tx
+            .send(Ok(DownloadFileResponse { payload: None }))
+            .await;
         Ok(Response::new(tokio_stream::wrappers::ReceiverStream::new(rx)))
     }
 

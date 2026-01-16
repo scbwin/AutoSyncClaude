@@ -1,10 +1,9 @@
 use crate::db::DbPool;
-use crate::proto::claude_sync::{
+use crate::proto::sync::claude_sync::{
     device_service_server::DeviceService, ListDevicesRequest, ListDevicesResponse,
     RegisterDeviceRequest, RegisterDeviceResponse, RemoveDeviceRequest, RemoveDeviceResponse,
     UpdateDeviceRequest, UpdateDeviceResponse,
 };
-use std::str::FromStr;
 use tonic::{Request, Response, Status};
 
 /// DeviceService gRPC 实现

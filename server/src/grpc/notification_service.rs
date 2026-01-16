@@ -1,9 +1,8 @@
 use crate::cache::Cache;
 use crate::db::DbPool;
-use crate::proto::claude_sync::{
-    change_notification::ChangeNotification as ProtoChangeNotification, heartbeat_request,
-    heartbeat_response, notification_service_server::NotificationService, ChangeNotification,
-    HeartbeatRequest, HeartbeatResponse, SubscribeChangesRequest,
+use crate::proto::sync::claude_sync::{
+    notification_service_server::NotificationService, ChangeNotification, HeartbeatRequest,
+    HeartbeatResponse, SubscribeChangesRequest,
 };
 use std::pin::Pin;
 use tokio_stream::wrappers::ReceiverStream;
@@ -22,18 +21,15 @@ impl NotificationGrpcService {
     }
 }
 
-type NotificationStream =
-    Pin<Box<dyn tokio_stream::Stream<Item = Result<ChangeNotification, Status>> + Send>>;
-
-type HeartbeatStream =
-    Pin<Box<dyn tokio_stream::Stream<Item = Result<HeartbeatResponse, Status>> + Send>>;
-
 #[tonic::async_trait]
 impl NotificationService for NotificationGrpcService {
+    type SubscribeChangesStream =
+        Pin<Box<dyn tokio_stream::Stream<Item = Result<ChangeNotification, Status>> + Send>>;
+
     async fn subscribe_changes(
         &self,
         _request: Request<SubscribeChangesRequest>,
-    ) -> Result<Response<Self::NotificationStream>, Status> {
+    ) -> Result<Response<Self::SubscribeChangesStream>, Status> {
         // TODO: 实现变更订阅逻辑
         let (tx, rx) = tokio::sync::mpsc::channel(1);
         let _ = tx
@@ -46,7 +42,8 @@ impl NotificationService for NotificationGrpcService {
         Ok(Response::new(Box::pin(ReceiverStream::new(rx))))
     }
 
-    type HeartbeatStream = HeartbeatStream;
+    type HeartbeatStream =
+        Pin<Box<dyn tokio_stream::Stream<Item = Result<HeartbeatResponse, Status>> + Send>>;
 
     async fn heartbeat(
         &self,

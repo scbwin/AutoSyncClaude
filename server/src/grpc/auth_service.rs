@@ -1,9 +1,9 @@
-use crate::auth::AuthService;
+use crate::auth::AuthService as LocalAuthService;
 use crate::cache::Cache;
 use crate::config::Config;
 use crate::db::DbPool;
-use crate::proto::claude_sync::{
-    auth_service_server::AuthService, LoginRequest as ProtoLoginRequest,
+use crate::proto::sync::claude_sync::{
+    auth_service_server::AuthService as AuthServiceTrait, LoginRequest as ProtoLoginRequest,
     LoginResponse as ProtoLoginResponse, LogoutRequest, LogoutResponse,
     RefreshTokenRequest, RefreshTokenResponse, RegisterRequest as ProtoRegisterRequest,
     RegisterResponse as ProtoRegisterResponse, RevokeTokenRequest, RevokeTokenResponse,
@@ -13,19 +13,19 @@ use tonic::{Request, Response, Status};
 
 /// AuthService gRPC 实现
 pub struct AuthGrpcService {
-    auth_service: AuthService,
+    auth_service: LocalAuthService,
 }
 
 impl AuthGrpcService {
     /// 创建新的 gRPC 服务实例
     pub fn new(pool: DbPool, cache: Cache, config: Config) -> Self {
-        let auth_service = AuthService::new(pool, cache, config);
+        let auth_service = LocalAuthService::new(pool, cache, config);
         Self { auth_service }
     }
 }
 
 #[tonic::async_trait]
-impl AuthService for AuthGrpcService {
+impl AuthServiceTrait for AuthGrpcService {
     async fn register(
         &self,
         request: Request<ProtoRegisterRequest>,
