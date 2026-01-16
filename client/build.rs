@@ -32,7 +32,8 @@ fn main() -> Result<()> {
     let proto_file = proto_dir.join("sync.proto");
 
     // 使用 OUT_DIR 作为输出目录（Cargo 构建脚本的标准做法）
-    let out_dir = Path::new(&std::env::var("OUT_DIR").unwrap());
+    let out_dir_str = std::env::var("OUT_DIR").unwrap();
+    let out_dir = Path::new(&out_dir_str);
 
     // 同时也复制到 src/proto 用于 IDE 支持
     let src_proto_dir = Path::new(&manifest_dir).join("src/proto");
