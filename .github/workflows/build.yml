@@ -198,6 +198,14 @@ jobs:
         toolchain: stable
         components: rustfmt
 
+    - name: Generate proto files (server)
+      working-directory: ./server
+      run: cargo build
+
+    - name: Generate proto files (client)
+      working-directory: ./client
+      run: cargo build
+
     - name: Check formatting
       run: |
         cd server && cargo fmt -- --check
@@ -221,6 +229,14 @@ jobs:
       with:
         toolchain: stable
         components: clippy
+
+    - name: Generate proto files (server)
+      working-directory: ./server
+      run: cargo build
+
+    - name: Generate proto files (client)
+      working-directory: ./client
+      run: cargo build
 
     - name: Run clippy
       run: |
