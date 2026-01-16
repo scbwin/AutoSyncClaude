@@ -1,5 +1,6 @@
 use std::io::Result;
 use std::path::Path;
+use std::process::Command;
 
 fn main() -> Result<()> {
     // 获取项目根目录（CARGO_MANIFEST_DIR 指向 client 目录）
@@ -23,6 +24,29 @@ fn main() -> Result<()> {
     eprintln!("proto_dir (canonicalized): {}", proto_dir.display());
     eprintln!("proto_file: {}", proto_file.display());
     eprintln!("proto_file exists: {}", proto_file.exists());
+
+    // 检查 protoc 是否可用
+    let protoc_check = Command::new("protoc")
+        .arg("--version")
+        .output();
+    match protoc_check {
+        Ok(output) => {
+            eprintln!("protoc version: {}", String::from_utf8_lossy(&output.stdout));
+        }
+        Err(e) => {
+            eprintln!("警告: protoc 不可用: {}", e);
+        }
+    }
+
+    // 检查 out_dir 是否可创建
+    let out_dir = Path::new("src/proto");
+    eprintln!("out_dir: {}", out_dir.display());
+    eprintln!("out_dir exists: {}", out_dir.exists());
+    if !out_dir.exists() {
+        if let Err(e) = std::fs::create_dir_all(out_dir) {
+            eprintln!("警告: 无法创建 out_dir: {}", e);
+        }
+    }
 
     // 编译 Protocol Buffers 定义
     tonic_build::configure()
