@@ -1,0 +1,42 @@
+name: Generate Proto Files
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'proto/*.proto'
+      - '.github/workflows/generate-proto.yml'
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        run: rustup default stable
+
+      - name: Generate proto files
+        run: |
+          # Generate server proto files
+          cd server
+          cargo build
+
+      - name: Check generated files
+        run: |
+          echo "=== Server proto files ==="
+          ls -la server/src/proto/
+          echo "=== First 100 lines of claude_sync.rs ==="
+          head -100 server/src/proto/claude_sync.rs || echo "File not found"
+
+      - name: Commit proto files
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add server/src/proto/*.rs client/src/proto/*.rs
+          git diff --staged --quiet || git commit -m "chore: regenerate proto files"
+
+      - name: Push changes
+        run: git push
