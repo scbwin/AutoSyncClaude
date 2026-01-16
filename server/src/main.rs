@@ -5,9 +5,8 @@ mod db;
 mod grpc;
 mod health;
 mod models;
-// proto 模块由 build.rs 在构建时生成到 OUT_DIR
-// 使用 include! 宏引入，因为文件在构建时才生成
-include!(concat!(env!("OUT_DIR"), "/sync.rs"));
+// proto 模块由 build.rs 在构建时生成到 src/proto/
+mod proto;
 mod server;
 mod storage;
 

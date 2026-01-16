@@ -20,8 +20,10 @@ Cargo.lock
 docker/.env
 
 # Protocol Buffers 生成文件
-server/src/proto/
-client/src/proto/
+server/src/proto/claude_sync.rs
+client/src/proto/claude_sync.rs
+server/src/proto/sync.rs
+client/src/proto/sync.rs
 
 # 数据
 postgres_data/

@@ -2,7 +2,7 @@ use crate::auth::AuthService as LocalAuthService;
 use crate::cache::Cache;
 use crate::config::Config;
 use crate::db::DbPool;
-use crate::claude_sync::{
+use crate::proto::claude_sync::{
     auth_service_server::AuthService as AuthServiceTrait, LoginRequest as ProtoLoginRequest,
     LoginResponse as ProtoLoginResponse, LogoutRequest, LogoutResponse,
     RefreshTokenRequest, RefreshTokenResponse, RegisterRequest as ProtoRegisterRequest,

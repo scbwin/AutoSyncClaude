@@ -1,6 +1,6 @@
 use crate::cache::Cache;
 use crate::db::DbPool;
-use crate::claude_sync::{
+use crate::proto::claude_sync::{
     file_sync_service_server::FileSyncService, DownloadFileResponse, FetchChangesRequest,
     FetchChangesResponse, ReportChangesRequest, ReportChangesResponse, ResolveConflictRequest,
     ResolveConflictResponse, RestoreFileVersionRequest, RestoreFileVersionResponse,
