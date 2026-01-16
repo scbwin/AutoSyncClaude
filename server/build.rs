@@ -7,7 +7,7 @@ fn normalize_path(path: &Path) -> PathBuf {
     for component in path.components() {
         use std::path::Component;
         match component {
-            Component::Prefix(p) => result.push(p),
+            Component::Prefix(p) => result.push(p.as_os_str()),
             Component::RootDir => result.push(component.as_os_str()),
             Component::Normal(s) => result.push(s),
             Component::CurDir => {},
@@ -27,7 +27,8 @@ fn main() -> Result<()> {
         .expect("CARGO_MANIFEST_DIR 环境变量未设置");
 
     // proto 文件位于 server 的父目录，手动规范化路径避免 UNC 格式
-    let proto_dir = normalize_path(Path::new(&manifest_dir).join("../proto"));
+    let proto_path = Path::new(&manifest_dir).join("../proto");
+    let proto_dir = normalize_path(&proto_path);
     let proto_file = proto_dir.join("sync.proto");
 
     // 确保 out_dir 存在
