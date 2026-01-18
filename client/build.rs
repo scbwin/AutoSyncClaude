@@ -1,6 +1,6 @@
 use std::fs;
 use std::io::Result;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 fn main() -> Result<()> {
     // 获取项目根目录
@@ -24,7 +24,7 @@ fn main() -> Result<()> {
         .compile(&[&proto_file], &[&proto_include])
         .map_err(|e| {
             eprintln!("tonic_build error: {:?}", e);
-            std::io::Error::new(std::io::ErrorKind::Other, e)
+            std::io::Error::other(e)
         })?;
 
     // 生成的文件应该是 claude_sync.rs（基于 proto 的 package 名）
