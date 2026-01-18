@@ -19,7 +19,17 @@
       "Bash(git restore:*)",
       "Bash(git push:*)",
       "Bash(gh run list:*)",
-      "Bash(git fetch:*)"
+      "Bash(git fetch:*)",
+      "Bash(curl:*)",
+      "Bash(chmod:*)",
+      "Bash(./rustup-init.sh:*)",
+      "Bash(source:*)",
+      "Bash(winget:*)",
+      "Bash(rustup:*)",
+      "Bash(rustup default:*)",
+      "Bash(gh:*)",
+      "Bash(where:*)",
+      "Bash(git rebase:*)"
     ]
   }
 }
