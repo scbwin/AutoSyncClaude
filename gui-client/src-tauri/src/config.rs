@@ -129,9 +129,14 @@ impl ConfigManager {
             "enabled": true
         });
 
+        // 确保 sync.rules 数组存在
+        if config["sync"]["rules"].is_null() {
+            config["sync"]["rules"] = serde_json::json!([]);
+        }
+
         config["sync"]["rules"]
             .as_array_mut()
-            .unwrap_or(&mut vec![])
+            .ok_or_else(|| anyhow::anyhow!("rules is not an array"))?
             .push(rule);
 
         self.update_config(config).await?;
