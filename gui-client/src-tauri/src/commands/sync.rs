@@ -93,7 +93,7 @@ async fn run_sync_task(
     if files_with_hash.is_empty() {
         warn!("没有找到可同步的文件");
         update_sync_state(&sync_state, 100.0, 0, 0).await;
-        mark_sync_complete(&sync_state).await;
+        mark_sync_complete(&sync_state, &claude_dir, 0).await?;
         return Ok(());
     }
 
@@ -114,7 +114,7 @@ async fn run_sync_task(
     if files_to_sync.is_empty() {
         info!("所有文件都是最新的，无需同步");
         update_sync_state(&sync_state, 100.0, 0, 0).await;
-        mark_sync_complete(&sync_state).await;
+        mark_sync_complete(&sync_state, &claude_dir, 0).await?;
         return Ok(());
     }
 
@@ -143,7 +143,7 @@ async fn run_sync_task(
 
     info!("同步完成: {} 个文件", files_to_sync.len());
 
-    mark_sync_complete(&sync_state).await;
+    mark_sync_complete(&sync_state, &claude_dir, files_to_sync.len()).await?;
 
     Ok(())
 }
@@ -380,11 +380,93 @@ async fn update_sync_state(
 }
 
 /// 标记同步完成
-async fn mark_sync_complete(sync_state: &Arc<Mutex<SyncState>>) {
+async fn mark_sync_complete(
+    sync_state: &Arc<Mutex<SyncState>>,
+    claude_dir: &Path,
+    synced_count: usize,
+) -> Result<(), String> {
+    let now = chrono::Utc::now();
     let mut state = sync_state.lock().await;
     state.is_syncing = false;
     state.progress = 100.0;
-    state.last_sync_time = Some(chrono::Utc::now());
+    state.last_sync_time = Some(now);
+    state.synced_count = synced_count;
+
+    // 保存到配置文件
+    save_sync_state(claude_dir, now, synced_count)?;
+
+    Ok(())
+}
+
+/// 保存同步状态到配置文件
+fn save_sync_state(claude_dir: &Path, last_sync: chrono::DateTime<Utc>, synced_count: usize) -> Result<(), String> {
+    let state_path = claude_dir.join(".sync-state.json");
+
+    let state_data = serde_json::json!({
+        "last_sync": last_sync.to_rfc3339(),
+        "synced_count": synced_count
+    });
+
+    let content = serde_json::to_string_pretty(&state_data)
+        .map_err(|e| format!("无法序列化同步状态: {}", e))?;
+
+    std::fs::write(&state_path, content)
+        .map_err(|e| format!("无法写入同步状态: {}", e))?;
+
+    Ok(())
+}
+
+/// 加载同步状态从配置文件
+pub fn load_sync_state(claude_dir: &Path) -> Result<(Option<chrono::DateTime<Utc>>, usize), String> {
+    let state_path = claude_dir.join(".sync-state.json");
+
+    if !state_path.exists() {
+        return Ok((None, 0));
+    }
+
+    let content = std::fs::read_to_string(&state_path)
+        .map_err(|e| format!("无法读取同步状态: {}", e))?;
+
+    let state: serde_json::Value = serde_json::from_str(&content)
+        .map_err(|e| format!("无法解析同步状态: {}", e))?;
+
+    let last_sync = state["last_sync"]
+        .as_str()
+        .and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok());
+
+    let synced_count = state["synced_count"]
+        .as_u64()
+        .unwrap_or(0) as usize;
+
+    Ok((last_sync, synced_count))
+}
+
+#[tauri::command]
+pub async fn load_sync_state_from_disk(
+    sync_state: State<'_, Arc<Mutex<SyncState>>>,
+    config_manager: State<'_, Arc<Mutex<ConfigManager>>>,
+) -> Result<(), String> {
+    let manager = config_manager.lock().await;
+    let config = manager.get_config().await.map_err(|e| e.to_string())?;
+    drop(manager);
+
+    // 获取 Claude 目录路径
+    let claude_dir = config["sync"]["claude_dir"]
+        .as_str()
+        .unwrap_or("")
+        .to_string();
+
+    let claude_dir = PathBuf::from(claude_dir);
+
+    // 加载持久化的状态
+    let (last_sync, synced_count) = load_sync_state(&claude_dir)?;
+
+    let mut state = sync_state.lock().await;
+    state.load_persistent(last_sync, synced_count);
+
+    tracing::info!("加载同步状态: last_sync={:?}, synced_count={}", last_sync, synced_count);
+
+    Ok(())
 }
 
 #[tauri::command]

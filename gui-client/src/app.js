@@ -19,11 +19,22 @@ const state = {
 // Initialize app
 async function init() {
     await loadConfig();
+    await loadSyncStateFromDisk();
     await checkAuthStatus();
     setupEventListeners();
     setupNavigation();
     startConnectionCheck();
     updateUI();
+}
+
+// Load sync state from disk
+async function loadSyncStateFromDisk() {
+    try {
+        await window.__TAURI__.invoke('load_sync_state_from_disk');
+        console.log('Sync state loaded from disk');
+    } catch (error) {
+        console.error('Failed to load sync state:', error);
+    }
 }
 
 // Load configuration

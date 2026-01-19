@@ -1,6 +1,7 @@
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SyncState {
     pub is_syncing: bool,
     pub sync_mode: Option<String>,
@@ -38,6 +39,12 @@ impl SyncState {
 
     pub fn increment_failed(&mut self) {
         self.failed_count += 1;
+    }
+
+    /// 加载持久化的状态
+    pub fn load_persistent(&mut self, last_sync_time: Option<DateTime<Utc>>, synced_count: usize) {
+        self.last_sync_time = last_sync_time;
+        self.synced_count = synced_count;
     }
 }
 
