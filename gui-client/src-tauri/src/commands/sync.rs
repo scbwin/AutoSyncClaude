@@ -9,6 +9,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use tauri::State;
 use tracing::{debug, error, info, warn};
+use chrono::{DateTime, Utc};
 
 /// 文件同步状态
 #[derive(Debug, Clone, serde::Serialize)]
@@ -399,7 +400,7 @@ async fn mark_sync_complete(
 }
 
 /// 保存同步状态到配置文件
-fn save_sync_state(claude_dir: &Path, last_sync: chrono::DateTime<Utc>, synced_count: usize) -> Result<(), String> {
+fn save_sync_state(claude_dir: &Path, last_sync: DateTime<Utc>, synced_count: usize) -> Result<(), String> {
     let state_path = claude_dir.join(".sync-state.json");
 
     let state_data = serde_json::json!({
@@ -417,7 +418,7 @@ fn save_sync_state(claude_dir: &Path, last_sync: chrono::DateTime<Utc>, synced_c
 }
 
 /// 加载同步状态从配置文件
-pub fn load_sync_state(claude_dir: &Path) -> Result<(Option<chrono::DateTime<Utc>>, usize), String> {
+pub fn load_sync_state(claude_dir: &Path) -> Result<(Option<DateTime<Utc>>, usize), String> {
     let state_path = claude_dir.join(".sync-state.json");
 
     if !state_path.exists() {
