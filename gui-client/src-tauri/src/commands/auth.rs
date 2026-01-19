@@ -11,7 +11,7 @@ pub async fn login(
     _password: String,
     _device_name: Option<String>,
     config_manager: State<'_, Arc<Mutex<ConfigManager>>>,
-    _sync_state: State<'_, Arc<Mutex<SyncState>>>,
+    sync_state: State<'_, Arc<Mutex<SyncState>>>,
 ) -> Result<Value, String> {
     let manager = config_manager.lock().await;
     let _config = manager.get_config().await.map_err(|e| e.to_string())?;
@@ -20,9 +20,17 @@ pub async fn login(
     // TODO: 调用实际的登录逻辑
     // 这里需要集成 client 模块中的登录功能
 
+    let user_id = uuid::Uuid::new_v4().to_string();
+    let device_id = uuid::Uuid::new_v4().to_string();
+
+    // 保存用户信息到同步状态
+    let mut state = sync_state.lock().await;
+    state.set_user(user_id.clone(), device_id.clone());
+    drop(state);
+
     let response = serde_json::json!({
-        "user_id": "temp-user-id",
-        "device_id": "temp-device-id",
+        "user_id": user_id,
+        "device_id": device_id,
         "access_token": "temp-token",
         "message": "登录成功"
     });
@@ -33,24 +41,37 @@ pub async fn login(
 #[tauri::command]
 pub async fn logout(
     _config_manager: State<'_, Arc<Mutex<ConfigManager>>>,
-    _sync_state: State<'_, Arc<Mutex<SyncState>>>,
+    sync_state: State<'_, Arc<Mutex<SyncState>>>,
 ) -> Result<(), String> {
-    // TODO: 实现登出逻辑
+    // 清除用户信息
+    let mut state = sync_state.lock().await;
+    state.user_id = None;
+    state.device_id = None;
+
+    tracing::info!("用户已登出");
+
     Ok(())
 }
 
 #[tauri::command]
 pub async fn get_status(
     config_manager: State<'_, Arc<Mutex<ConfigManager>>>,
+    sync_state: State<'_, Arc<Mutex<SyncState>>>,
 ) -> Result<Value, String> {
     let manager = config_manager.lock().await;
 
     let is_logged_in = manager.is_logged_in().await.map_err(|e| e.to_string())?;
 
+    // 从 sync_state 获取用户信息
+    let state = sync_state.lock().await;
+    let user_id = state.user_id.clone().unwrap_or_default();
+    let device_id = state.device_id.clone().unwrap_or_default();
+    drop(state);
+
     let status = serde_json::json!({
-        "logged_in": is_logged_in,
-        "user_id": manager.get_user_id().await.unwrap_or_default(),
-        "device_id": manager.get_device_id().await.unwrap_or_default()
+        "logged_in": is_logged_in || !user_id.is_empty(),
+        "user_id": user_id,
+        "device_id": device_id
     });
 
     Ok(status)

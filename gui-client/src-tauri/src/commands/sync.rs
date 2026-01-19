@@ -85,8 +85,24 @@ async fn run_sync_task(
 ) -> Result<(), String> {
     info!("同步任务开始运行");
 
-    // 加载本地文件状态缓存
-    let cached_states = load_file_cache(&claude_dir)?;
+    // 获取用户 ID
+    let (user_id, device_id) = {
+        let state = sync_state.lock().await;
+        (
+            state.get_user_id().map(|s| s.to_string()).ok_or_else(|| {
+                error!("用户未登录，无法同步");
+                "guest".to_string()
+            }),
+            state.get_device_id().map(|s| s.to_string()).unwrap_or_else(|| {
+                uuid::Uuid::new_v4().to_string()
+            }),
+        )
+    };
+
+    info!("使用用户 ID: {}, 设备 ID: {}", user_id, device_id);
+
+    // 加载本地文件状态缓存（按用户隔离）
+    let cached_states = load_file_cache(&claude_dir, &user_id)?;
 
     // 扫描文件并计算哈希
     let files_with_hash = scan_files_with_hash(&claude_dir).await?;
@@ -94,7 +110,7 @@ async fn run_sync_task(
     if files_with_hash.is_empty() {
         warn!("没有找到可同步的文件");
         update_sync_state(&sync_state, 100.0, 0, 0).await;
-        mark_sync_complete(&sync_state, &claude_dir, 0).await?;
+        mark_sync_complete(&sync_state, &claude_dir, &user_id, 0).await?;
         return Ok(());
     }
 
@@ -110,12 +126,12 @@ async fn run_sync_task(
         })
         .collect();
 
-    info!("总文件数: {}, 需要同步: {}", total_files_count, files_to_sync.len());
+    info!("用户 {}: 总文件数: {}, 需要同步: {}", user_id, total_files_count, files_to_sync.len());
 
     if files_to_sync.is_empty() {
-        info!("所有文件都是最新的，无需同步");
+        info!("用户 {}: 所有文件都是最新的，无需同步", user_id);
         update_sync_state(&sync_state, 100.0, 0, 0).await;
-        mark_sync_complete(&sync_state, &claude_dir, 0).await?;
+        mark_sync_complete(&sync_state, &claude_dir, &user_id, 0).await?;
         return Ok(());
     }
 
@@ -128,7 +144,7 @@ async fn run_sync_task(
         debug!("同步文件 [{}/{}]: {:?}", index + 1, files_to_sync.len(), file_path);
 
         // TODO: 实际的文件同步逻辑
-        // 1. 调用 gRPC 客户端上报文件变更
+        // 1. 调用 gRPC 客户端上报文件变更（附带 user_id）
         // 2. 上传文件内容（如果需要）
 
         // 更新进度
@@ -138,13 +154,13 @@ async fn run_sync_task(
         tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
     }
 
-    // 同步完成后重新扫描并更新缓存
+    // 同步完成后重新扫描并更新缓存（按用户隔离）
     let all_files = scan_files_with_hash(&claude_dir).await?;
-    save_file_cache(&claude_dir, &all_files)?;
+    save_file_cache(&claude_dir, &user_id, &all_files)?;
 
-    info!("同步完成: {} 个文件", files_to_sync.len());
+    info!("用户 {}: 同步完成: {} 个文件", user_id, files_to_sync.len());
 
-    mark_sync_complete(&sync_state, &claude_dir, files_to_sync.len()).await?;
+    mark_sync_complete(&sync_state, &claude_dir, &user_id, files_to_sync.len()).await?;
 
     Ok(())
 }
@@ -318,14 +334,14 @@ fn calculate_file_hash(path: &Path) -> Result<(String, u64), String> {
     Ok((hash, size))
 }
 
-/// 文件缓存文件路径
-fn cache_file_path(claude_dir: &Path) -> PathBuf {
-    claude_dir.join(".sync-cache.json")
+/// 文件缓存文件路径（按用户隔离）
+fn cache_file_path(claude_dir: &Path, user_id: &str) -> PathBuf {
+    claude_dir.join(format!(".sync-cache-{}.json", user_id))
 }
 
-/// 加载文件缓存
-fn load_file_cache(claude_dir: &Path) -> Result<HashMap<String, String>, String> {
-    let cache_path = cache_file_path(claude_dir);
+/// 加载文件缓存（按用户隔离）
+fn load_file_cache(claude_dir: &Path, user_id: &str) -> Result<HashMap<String, String>, String> {
+    let cache_path = cache_file_path(claude_dir, user_id);
 
     if !cache_path.exists() {
         return Ok(HashMap::new());
@@ -340,9 +356,9 @@ fn load_file_cache(claude_dir: &Path) -> Result<HashMap<String, String>, String>
     Ok(cache)
 }
 
-/// 保存文件缓存
-fn save_file_cache(claude_dir: &Path, files: &[(String, String, u64)]) -> Result<(), String> {
-    let cache_path = cache_file_path(claude_dir);
+/// 保存文件缓存（按用户隔离）
+fn save_file_cache(claude_dir: &Path, user_id: &str, files: &[(String, String, u64)]) -> Result<(), String> {
+    let cache_path = cache_file_path(claude_dir, user_id);
 
     let cache: HashMap<String, String> = files
         .iter()
@@ -384,6 +400,7 @@ async fn update_sync_state(
 async fn mark_sync_complete(
     sync_state: &Arc<Mutex<SyncState>>,
     claude_dir: &Path,
+    user_id: &str,
     synced_count: usize,
 ) -> Result<(), String> {
     let now = chrono::Utc::now();
@@ -393,19 +410,25 @@ async fn mark_sync_complete(
     state.last_sync_time = Some(now);
     state.synced_count = synced_count;
 
-    // 保存到配置文件
-    save_sync_state(claude_dir, now, synced_count)?;
+    // 保存到配置文件（按用户隔离）
+    save_sync_state(claude_dir, user_id, now, synced_count)?;
 
     Ok(())
 }
 
-/// 保存同步状态到配置文件
-fn save_sync_state(claude_dir: &Path, last_sync: DateTime<Utc>, synced_count: usize) -> Result<(), String> {
-    let state_path = claude_dir.join(".sync-state.json");
+/// 保存同步状态到配置文件（按用户隔离）
+fn save_sync_state(
+    claude_dir: &Path,
+    user_id: &str,
+    last_sync: DateTime<Utc>,
+    synced_count: usize,
+) -> Result<(), String> {
+    let state_path = claude_dir.join(format!(".sync-state-{}.json", user_id));
 
     let state_data = serde_json::json!({
         "last_sync": last_sync.to_rfc3339(),
-        "synced_count": synced_count
+        "synced_count": synced_count,
+        "user_id": user_id
     });
 
     let content = serde_json::to_string_pretty(&state_data)
@@ -417,9 +440,9 @@ fn save_sync_state(claude_dir: &Path, last_sync: DateTime<Utc>, synced_count: us
     Ok(())
 }
 
-/// 加载同步状态从配置文件
-pub fn load_sync_state(claude_dir: &Path) -> Result<(Option<DateTime<Utc>>, usize), String> {
-    let state_path = claude_dir.join(".sync-state.json");
+/// 加载同步状态从配置文件（按用户隔离）
+pub fn load_sync_state(claude_dir: &Path, user_id: &str) -> Result<(Option<DateTime<Utc>>, usize), String> {
+    let state_path = claude_dir.join(format!(".sync-state-{}.json", user_id));
 
     if !state_path.exists() {
         return Ok((None, 0));
@@ -460,13 +483,21 @@ pub async fn load_sync_state_from_disk(
 
     let claude_dir = PathBuf::from(claude_dir);
 
-    // 加载持久化的状态
-    let (last_sync, synced_count) = load_sync_state(&claude_dir)?;
+    // 从状态获取用户 ID
+    let user_id = {
+        let state = sync_state.lock().await;
+        let uid = state.get_user_id().map(|s| s.to_string());
+        drop(state);
+        uid.unwrap_or_else(|| "guest".to_string())
+    };
+
+    // 加载持久化的状态（按用户隔离）
+    let (last_sync, synced_count) = load_sync_state(&claude_dir, &user_id)?;
 
     let mut state = sync_state.lock().await;
     state.load_persistent(last_sync, synced_count);
 
-    tracing::info!("加载同步状态: last_sync={:?}, synced_count={}", last_sync, synced_count);
+    tracing::info!("用户 {}: 加载同步状态: last_sync={:?}, synced_count={}", user_id, last_sync, synced_count);
 
     Ok(())
 }
