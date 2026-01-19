@@ -89,7 +89,7 @@ async fn run_sync_task(
     let (user_id, device_id) = {
         let state = sync_state.lock().await;
         (
-            state.get_user_id().map(|s| s.to_string()).ok_or_else(|| {
+            state.get_user_id().map(|s| s.to_string()).unwrap_or_else(|| {
                 error!("用户未登录，无法同步");
                 "guest".to_string()
             }),
@@ -169,6 +169,7 @@ async fn run_sync_task(
 #[tauri::command]
 pub async fn get_pending_files(
     config_manager: State<'_, Arc<Mutex<ConfigManager>>>,
+    sync_state: State<'_, Arc<Mutex<SyncState>>>,
 ) -> Result<Value, String> {
     // 获取配置
     let manager = config_manager.lock().await;
@@ -187,8 +188,14 @@ pub async fn get_pending_files(
         return Ok(serde_json::json!([]));
     }
 
+    // 获取用户 ID
+    let user_id = {
+        let state = sync_state.lock().await;
+        state.get_user_id().map(|s| s.to_string()).unwrap_or_else(|| "guest".to_string())
+    };
+
     // 加载本地文件状态缓存
-    let cached_states = load_file_cache(&claude_dir).unwrap_or_default();
+    let cached_states = load_file_cache(&claude_dir, &user_id).unwrap_or_default();
 
     // 扫描文件并计算哈希
     let files_with_hash = scan_files_with_hash(&claude_dir).await?;
