@@ -45,6 +45,7 @@ async fn main() {
             commands::sync::start_sync,
             commands::sync::stop_sync,
             commands::sync::get_sync_status,
+            commands::sync::get_pending_files,
             commands::rules::list_rules,
             commands::rules::add_rule,
             commands::rules::remove_rule,

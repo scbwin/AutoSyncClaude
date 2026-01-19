@@ -6,6 +6,7 @@ const state = {
     config: null,
     syncStatus: null,
     rules: [],
+    pendingFiles: [],
     devices: [],
     connectionStatus: {
         connected: false,
@@ -256,6 +257,9 @@ async function pollSyncStatus() {
                 document.getElementById('startSyncBtn').disabled = false;
                 document.getElementById('stopSyncBtn').disabled = true;
                 document.getElementById('syncProgress').style.display = 'none';
+
+                // 同步完成后刷新文件列表
+                await loadPendingFiles();
             }
 
             // Update dashboard stats
@@ -283,9 +287,75 @@ async function loadSyncStatus() {
             document.getElementById('progressBar').style.width = status.progress + '%';
             pollSyncStatus();
         }
+
+        // 加载待同步文件列表
+        await loadPendingFiles();
     } catch (error) {
         console.error('Failed to load sync status:', error);
     }
+}
+
+// Load pending files
+async function loadPendingFiles() {
+    try {
+        const files = await window.__TAURI__.invoke('get_pending_files');
+        state.pendingFiles = files;
+        renderFileList();
+    } catch (error) {
+        console.error('Failed to load pending files:', error);
+    }
+}
+
+// Render file list
+function renderFileList() {
+    const container = document.getElementById('fileList');
+
+    if (!state.pendingFiles || state.pendingFiles.length === 0) {
+        container.innerHTML = '<div class="empty-state">暂无文件</div>';
+        return;
+    }
+
+    // 统计文件
+    const modifiedFiles = state.pendingFiles.filter(f => f.modified);
+    const totalSize = state.pendingFiles.reduce((sum, f) => sum + f.size, 0);
+
+    const html = `
+        <div class="file-summary">
+            <span>总文件数: ${state.pendingFiles.length}</span>
+            <span>待同步: ${modifiedFiles.length}</span>
+            <span>总大小: ${formatSize(totalSize)}</span>
+        </div>
+        <div class="file-items">
+            ${state.pendingFiles.map(file => `
+                <div class="file-item ${file.modified ? 'modified' : ''}">
+                    <div class="file-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                        </svg>
+                    </div>
+                    <div class="file-info">
+                        <div class="file-name">${escapeHtml(file.path)}</div>
+                        <div class="file-meta">
+                            <span>${formatSize(file.size)}</span>
+                            ${file.modified ? '<span class="status-modified">待同步</span>' : '<span class="status-current">已同步</span>'}
+                        </div>
+                    </div>
+                </div>
+            `).join('')}
+        </div>
+    `;
+
+    container.innerHTML = html;
+}
+
+// Format file size
+function formatSize(bytes) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
 }
 
 // Load dashboard data

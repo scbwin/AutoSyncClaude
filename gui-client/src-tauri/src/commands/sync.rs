@@ -1,11 +1,23 @@
 use crate::config::ConfigManager;
 use crate::state::SyncState;
 use serde_json::Value;
+use sha2::{Digest, Sha256};
+use std::collections::HashMap;
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tauri::State;
 use tracing::{debug, error, info, warn};
+
+/// 文件同步状态
+#[derive(Debug, Clone, serde::Serialize)]
+struct FileSyncInfo {
+    path: String,
+    hash: String,
+    size: u64,
+    modified: bool,
+}
 
 #[tauri::command]
 pub async fn start_sync(
@@ -72,33 +84,49 @@ async fn run_sync_task(
 ) -> Result<(), String> {
     info!("同步任务开始运行");
 
-    // 扫描文件
-    let files = scan_claude_files(&claude_dir).await?;
+    // 加载本地文件状态缓存
+    let cached_states = load_file_cache(&claude_dir)?;
 
-    if files.is_empty() {
+    // 扫描文件并计算哈希
+    let files_with_hash = scan_files_with_hash(&claude_dir).await?;
+
+    if files_with_hash.is_empty() {
         warn!("没有找到可同步的文件");
         update_sync_state(&sync_state, 100.0, 0, 0).await;
         mark_sync_complete(&sync_state).await;
         return Ok(());
     }
 
-    info!("找到 {} 个文件待同步", files.len());
+    // 找出需要同步的文件（哈希不同的文件）
+    let files_to_sync: Vec<_> = files_with_hash
+        .into_iter()
+        .filter(|(path, hash, _size)| {
+            cached_states
+                .get(path)
+                .map_or(true, |cached| cached != hash)
+        })
+        .collect();
 
-    // 获取服务器地址
-    // TODO: 从配置中获取实际的 gRPC 服务器地址并调用
+    info!("总文件数: {}, 需要同步: {}", files_with_hash.len(), files_to_sync.len());
 
-    let total_files = files.len() as f64;
+    if files_to_sync.is_empty() {
+        info!("所有文件都是最新的，无需同步");
+        update_sync_state(&sync_state, 100.0, 0, 0).await;
+        mark_sync_complete(&sync_state).await;
+        return Ok(());
+    }
 
-    // 模拟同步过程
-    for (index, file_path) in files.iter().enumerate() {
+    let total_files = files_to_sync.len() as f64;
+
+    // 同步有变化的文件
+    for (index, (file_path, _hash, _size)) in files_to_sync.iter().enumerate() {
         let progress = ((index + 1) as f64 / total_files) * 100.0;
 
-        debug!("同步文件 [{}/{}]: {:?}", index + 1, files.len(), file_path);
+        debug!("同步文件 [{}/{}]: {:?}", index + 1, files_to_sync.len(), file_path);
 
         // TODO: 实际的文件同步逻辑
-        // 1. 计算文件哈希
-        // 2. 调用 gRPC 客户端上报文件变更
-        // 3. 上传文件内容（如果需要）
+        // 1. 调用 gRPC 客户端上报文件变更
+        // 2. 上传文件内容（如果需要）
 
         // 更新进度
         update_sync_state(&sync_state, progress, index + 1, 0).await;
@@ -107,15 +135,63 @@ async fn run_sync_task(
         tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
     }
 
-    info!("同步完成: {} 个文件", files.len());
+    // 同步完成后更新缓存
+    save_file_cache(&claude_dir, &files_with_hash)?;
+
+    info!("同步完成: {} 个文件", files_to_sync.len());
 
     mark_sync_complete(&sync_state).await;
 
     Ok(())
 }
 
-/// 扫描 Claude 目录中的文件
-async fn scan_claude_files(claude_dir: &Path) -> Result<Vec<PathBuf>, String> {
+/// 获取待同步文件列表
+#[tauri::command]
+pub async fn get_pending_files(
+    config_manager: State<'_, Arc<Mutex<ConfigManager>>>,
+) -> Result<Value, String> {
+    // 获取配置
+    let manager = config_manager.lock().await;
+    let config = manager.get_config().await.map_err(|e| e.to_string())?;
+    drop(manager);
+
+    // 获取 Claude 目录路径
+    let claude_dir = config["sync"]["claude_dir"]
+        .as_str()
+        .unwrap_or("")
+        .to_string();
+
+    let claude_dir = PathBuf::from(claude_dir);
+
+    if !claude_dir.exists() {
+        return Ok(serde_json::json!([]));
+    }
+
+    // 加载本地文件状态缓存
+    let cached_states = load_file_cache(&claude_dir).unwrap_or_default();
+
+    // 扫描文件并计算哈希
+    let files_with_hash = scan_files_with_hash(&claude_dir).await?;
+
+    // 找出需要同步的文件
+    let pending_files: Vec<FileSyncInfo> = files_with_hash
+        .into_iter()
+        .map(|(path, hash, size)| {
+            let cached_hash = cached_states.get(&path);
+            FileSyncInfo {
+                path: path.clone(),
+                hash: hash.clone(),
+                size,
+                modified: cached_hash.map_or(true, |h| h != &hash),
+            }
+        })
+        .collect();
+
+    Ok(serde_json::to_value(pending_files).unwrap())
+}
+
+/// 扫描文件并计算哈希
+async fn scan_files_with_hash(claude_dir: &Path) -> Result<Vec<(String, String, u64)>, String> {
     let mut files = Vec::new();
 
     // 默认排除的目录
@@ -189,7 +265,14 @@ async fn scan_claude_files(claude_dir: &Path) -> Result<Vec<PathBuf>, String> {
                         continue;
                     }
 
-                    files.push(path);
+                    // 计算文件哈希
+                    if let Ok((hash, size)) = calculate_file_hash(&path) {
+                        // 获取相对路径
+                        if let Ok(rel_path) = path.strip_prefix(claude_dir) {
+                            let rel_path_str = rel_path.to_string_lossy().replace('\\', "/");
+                            files.push((rel_path_str, hash, size));
+                        }
+                    }
                 }
             }
         }
@@ -199,6 +282,85 @@ async fn scan_claude_files(claude_dir: &Path) -> Result<Vec<PathBuf>, String> {
     files.sort();
 
     Ok(files)
+}
+
+/// 计算文件哈希
+fn calculate_file_hash(path: &Path) -> Result<(String, u64), String> {
+    let metadata = std::fs::metadata(path)
+        .map_err(|e| format!("无法读取文件元数据: {}", e))?;
+    let size = metadata.len();
+
+    // 大文件跳过哈希计算（超过 10MB）
+    if size > 10 * 1024 * 1024 {
+        return Ok((format!("large_{}", size), size));
+    }
+
+    let mut file = std::fs::File::open(path)
+        .map_err(|e| format!("无法打开文件: {}", e))?;
+
+    let mut hasher = Sha256::new();
+    let mut buffer = vec![0u8; 8192];
+
+    loop {
+        let n = file.read(&mut buffer)
+            .map_err(|e| format!("读取文件失败: {}", e))?;
+        if n == 0 {
+            break;
+        }
+        hasher.update(&buffer[..n]);
+    }
+
+    let hash = format!("{:x}", hasher.finalize());
+    Ok((hash, size))
+}
+
+/// 文件缓存文件路径
+fn cache_file_path(claude_dir: &Path) -> PathBuf {
+    claude_dir.join(".sync-cache.json")
+}
+
+/// 加载文件缓存
+fn load_file_cache(claude_dir: &Path) -> Result<HashMap<String, String>, String> {
+    let cache_path = cache_file_path(claude_dir);
+
+    if !cache_path.exists() {
+        return Ok(HashMap::new());
+    }
+
+    let content = std::fs::read_to_string(&cache_path)
+        .map_err(|e| format!("无法读取缓存文件: {}", e))?;
+
+    let cache: HashMap<String, String> = serde_json::from_str(&content)
+        .map_err(|e| format!("无法解析缓存文件: {}", e))?;
+
+    Ok(cache)
+}
+
+/// 保存文件缓存
+fn save_file_cache(claude_dir: &Path, files: &[(String, String, u64)]) -> Result<(), String> {
+    let cache_path = cache_file_path(claude_dir);
+
+    let cache: HashMap<String, String> = files
+        .iter()
+        .map(|(path, hash, _)| (path.clone(), hash.clone()))
+        .collect();
+
+    let content = serde_json::to_string_pretty(&cache)
+        .map_err(|e| format!("无法序列化缓存: {}", e))?;
+
+    std::fs::write(&cache_path, content)
+        .map_err(|e| format!("无法写入缓存文件: {}", e))?;
+
+    Ok(())
+}
+
+/// 扫描 Claude 目录中的文件（已弃用，使用 scan_files_with_hash）
+async fn scan_claude_files(claude_dir: &Path) -> Result<Vec<PathBuf>, String> {
+    let files_with_hash = scan_files_with_hash(claude_dir).await?;
+    Ok(files_with_hash
+        .into_iter()
+        .map(|(path, _hash, _size)| claude_dir.join(path.replace('/', "\\")))
+        .collect())
 }
 
 /// 更新同步状态

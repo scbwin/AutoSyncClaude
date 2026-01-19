@@ -29,7 +29,9 @@
       "Bash(rustup default:*)",
       "Bash(gh:*)",
       "Bash(where:*)",
-      "Bash(git rebase:*)"
+      "Bash(git rebase:*)",
+      "Bash(git stash drop:*)",
+      "Bash(npm run tauri build:*)"
     ]
   }
 }

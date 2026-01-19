@@ -1,0 +1,7 @@
+{
+  "statusLine": {
+    "type": "command",
+    "command": "powershell -NoProfile -Command \"$input = $input | ConvertFrom-Json; $dir = $input.workspace.current_dir; $model = $input.model.display_name; $outputStyle = $input.output_style.name; $branch = ''; try { $branch = git -C $dir rev-parse --abbrev-ref HEAD 2>$null; if ($branch) { $branch = \" [$branch]\" } } catch {}; Write-Output (\\\"$model |$outputStyle| $dir$branch\\\")\"",
+    "padding": 0
+  }
+}
