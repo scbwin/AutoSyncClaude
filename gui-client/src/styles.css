@@ -80,8 +80,26 @@ body {
     background: var(--danger-color);
 }
 
-.connection-status.connected .status-dot {
+.status-dot.connected {
     background: var(--success-color);
+}
+
+.status-dot.disconnected {
+    background: var(--danger-color);
+}
+
+.status-dot.checking {
+    background: var(--warning-color);
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
 }
 
 .sidebar-nav {

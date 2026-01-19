@@ -41,7 +41,7 @@ impl ConfigManager {
         let default_config = serde_json::json!({
             "server": {
                 "address": "http://localhost:50051",
-                "health_check_address": "http://localhost:8181",
+                "health_check_address": "http://localhost:8080",
                 "timeout": 30
             },
             "sync": {

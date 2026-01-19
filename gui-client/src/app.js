@@ -7,6 +7,12 @@ const state = {
     syncStatus: null,
     rules: [],
     devices: [],
+    connectionStatus: {
+        connected: false,
+        message: '未连接',
+        checking: false
+    },
+    connectionCheckInterval: null,
 };
 
 // Initialize app
@@ -15,6 +21,7 @@ async function init() {
     await checkAuthStatus();
     setupEventListeners();
     setupNavigation();
+    startConnectionCheck();
     updateUI();
 }
 
@@ -435,7 +442,7 @@ function loadSettings() {
     const ui = state.config.ui || {};
 
     document.getElementById('serverAddress').value = server.address || 'http://localhost:50051';
-    document.getElementById('healthCheckAddress').value = server.health_check_address || 'http://localhost:8181';
+    document.getElementById('healthCheckAddress').value = server.health_check_address || 'http://localhost:8080';
     document.getElementById('serverTimeout').value = server.timeout || 30;
     document.getElementById('claudeDir').value = sync.claude_dir || '';
     document.getElementById('syncInterval').value = sync.interval || 60;
@@ -472,6 +479,9 @@ async function handleSaveSettings() {
         await window.__TAURI__.invoke('update_config', { config: newConfig });
         state.config = newConfig;
         showNotification('设置保存成功', 'success');
+
+        // 保存设置后重新检查连接状态
+        await checkConnection();
     } catch (error) {
         console.error('Failed to save settings:', error);
         showNotification('保存设置失败: ' + error, 'error');
@@ -490,6 +500,74 @@ async function handleResetSettings() {
     } catch (error) {
         console.error('Failed to reset settings:', error);
         showNotification('重置设置失败: ' + error, 'error');
+    }
+}
+
+// Check connection status
+async function checkConnection() {
+    if (state.connectionStatus.checking) return;
+
+    state.connectionStatus.checking = true;
+    updateConnectionStatusUI();
+
+    try {
+        const result = await window.__TAURI__.invoke('check_connection');
+        state.connectionStatus.connected = result.connected;
+        state.connectionStatus.message = result.message;
+        console.log('Connection check result:', result);
+    } catch (error) {
+        console.error('Connection check failed:', error);
+        state.connectionStatus.connected = false;
+        state.connectionStatus.message = '检查失败';
+    } finally {
+        state.connectionStatus.checking = false;
+        updateConnectionStatusUI();
+    }
+}
+
+// Update connection status UI
+function updateConnectionStatusUI() {
+    const statusEl = document.getElementById('connectionStatus');
+    if (!statusEl) return;
+
+    const dotEl = statusEl.querySelector('.status-dot');
+    const textEl = statusEl.querySelector('.status-text');
+
+    // 移除所有状态类
+    dotEl.classList.remove('connected', 'disconnected', 'checking');
+
+    if (state.connectionStatus.checking) {
+        dotEl.classList.add('checking');
+        textEl.textContent = '检查中...';
+    } else if (state.connectionStatus.connected) {
+        dotEl.classList.add('connected');
+        textEl.textContent = '已连接';
+    } else {
+        dotEl.classList.add('disconnected');
+        textEl.textContent = state.connectionStatus.message || '未连接';
+    }
+}
+
+// Start periodic connection check
+function startConnectionCheck() {
+    // 立即执行一次检查
+    checkConnection();
+
+    // 每 30 秒检查一次
+    if (state.connectionCheckInterval) {
+        clearInterval(state.connectionCheckInterval);
+    }
+
+    state.connectionCheckInterval = setInterval(() => {
+        checkConnection();
+    }, 30000);
+}
+
+// Stop connection check
+function stopConnectionCheck() {
+    if (state.connectionCheckInterval) {
+        clearInterval(state.connectionCheckInterval);
+        state.connectionCheckInterval = null;
     }
 }
 

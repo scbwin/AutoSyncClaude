@@ -55,3 +55,62 @@ pub async fn get_status(
 
     Ok(status)
 }
+
+/// 检查服务器连接状态
+#[tauri::command]
+pub async fn check_connection(
+    config_manager: State<'_, Arc<Mutex<ConfigManager>>>,
+) -> Result<Value, String> {
+    let manager = config_manager.lock().await;
+    let config = manager.get_config().await.map_err(|e| e.to_string())?;
+    drop(manager);
+
+    let health_check_url = config["server"]["health_check_address"]
+        .as_str()
+        .unwrap_or("http://localhost:8181");
+
+    let timeout = config["server"]["timeout"]
+        .as_u64()
+        .unwrap_or(5);
+
+    // 构建健康检查 URL
+    let url = format!("{}/health", health_check_url.trim_end_matches('/'));
+
+    // 创建 HTTP 客户端并设置超时
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(timeout))
+        .build()
+        .map_err(|e| format!("创建客户端失败: {}", e))?;
+
+    // 发送健康检查请求
+    let response = client
+        .get(&url)
+        .send()
+        .await;
+
+    match response {
+        Ok(resp) => {
+            let status = resp.status();
+            if status.is_success() {
+                Ok(serde_json::json!({
+                    "connected": true,
+                    "message": "已连接",
+                    "server": health_check_url
+                }))
+            } else {
+                Ok(serde_json::json!({
+                    "connected": false,
+                    "message": format!("服务器返回错误状态: {}", status),
+                    "server": health_check_url
+                }))
+            }
+        }
+        Err(e) => {
+            Ok(serde_json::json!({
+                "connected": false,
+                "message": format!("连接失败: {}", e),
+                "server": health_check_url
+            }))
+        }
+    }
+}

@@ -41,6 +41,7 @@ async fn main() {
             commands::auth::login,
             commands::auth::logout,
             commands::auth::get_status,
+            commands::auth::check_connection,
             commands::sync::start_sync,
             commands::sync::stop_sync,
             commands::sync::get_sync_status,
