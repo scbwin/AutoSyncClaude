@@ -11,7 +11,7 @@ edition = "2021"
 tauri-build = { version = "1.5", features = [] }
 
 [dependencies]
-tauri = { version = "1.6", features = [ "shell-open"] }
+tauri = { version = "1.6", features = [ "fs-rename-file", "fs-copy-file", "dialog-save", "fs-read-dir", "dialog-open", "path-all", "notification-all", "fs-create-dir", "fs-remove-file", "fs-read-file", "fs-exists", "dialog-message", "dialog-confirm", "fs-write-file", "dialog-ask", "fs-remove-dir", "shell-open"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tokio = { version = "1.35", features = ["full"] }
@@ -24,9 +24,6 @@ tracing-subscriber = "0.3"
 
 # HTTP 客户端（用于与服务器通信）
 reqwest = { version = "0.11", features = ["json"] }
-
-# 注意：暂时移除了对 claude-sync 库的直接依赖，避免 Windows 链接器问题
-# 未来可以通过 HTTP API 与服务器通信，或者修复链接器问题后重新添加依赖
 
 [features]
 default = ["custom-protocol"]
