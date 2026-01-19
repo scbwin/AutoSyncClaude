@@ -495,7 +495,14 @@ function renderDevices() {
                     </svg>
                 </div>
                 <div>
-                    <div class="device-name">${escapeHtml(device.name)}</div>
+                    <div class="device-name">
+                        ${escapeHtml(device.name)}
+                        ${device.is_current ? '<span class="badge-current">当前设备</span>' : ''}
+                    </div>
+                    <div class="device-meta">
+                        <span>${device.device_type || '未知类型'}</span>
+                        <span>${device.status === 'online' ? '在线' : '离线'}</span>
+                    </div>
                     <div class="device-last-seen">最后上线: ${device.last_seen ? formatTime(new Date(device.last_seen)) : '未知'}</div>
                 </div>
             </div>
