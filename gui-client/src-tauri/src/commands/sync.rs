@@ -97,6 +97,8 @@ async fn run_sync_task(
         return Ok(());
     }
 
+    let total_files_count = files_with_hash.len();
+
     // 找出需要同步的文件（哈希不同的文件）
     let files_to_sync: Vec<_> = files_with_hash
         .into_iter()
@@ -107,7 +109,7 @@ async fn run_sync_task(
         })
         .collect();
 
-    info!("总文件数: {}, 需要同步: {}", files_with_hash.len(), files_to_sync.len());
+    info!("总文件数: {}, 需要同步: {}", total_files_count, files_to_sync.len());
 
     if files_to_sync.is_empty() {
         info!("所有文件都是最新的，无需同步");
@@ -135,8 +137,9 @@ async fn run_sync_task(
         tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
     }
 
-    // 同步完成后更新缓存
-    save_file_cache(&claude_dir, &files_with_hash)?;
+    // 同步完成后重新扫描并更新缓存
+    let all_files = scan_files_with_hash(&claude_dir).await?;
+    save_file_cache(&claude_dir, &all_files)?;
 
     info!("同步完成: {} 个文件", files_to_sync.len());
 
