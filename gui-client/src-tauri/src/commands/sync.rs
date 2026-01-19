@@ -51,11 +51,11 @@ pub async fn start_sync(
     info!("开始 {} 同步，目录: {:?}", mode, claude_dir);
 
     // 克隆状态用于后台更新
-    let sync_state_clone = sync_state.clone();
+    let sync_state_inner = sync_state.inner().clone();
 
     // 启动后台同步任务
     tauri::async_runtime::spawn(async move {
-        if let Err(e) = run_sync_task(mode, claude_dir, sync_state_clone).await {
+        if let Err(e) = run_sync_task(mode, claude_dir, sync_state_inner).await {
             error!("同步任务失败: {}", e);
         }
     });
@@ -65,7 +65,7 @@ pub async fn start_sync(
 
 /// 运行同步任务
 async fn run_sync_task(
-    mode: String,
+    _mode: String,
     claude_dir: PathBuf,
     sync_state: Arc<Mutex<SyncState>>,
 ) -> Result<(), String> {
