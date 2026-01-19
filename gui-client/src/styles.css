@@ -755,6 +755,21 @@ h3 {
     padding: 1.5rem;
 }
 
+.auth-switch {
+    text-align: center;
+    margin-top: 16px;
+    font-size: 14px;
+}
+
+.auth-switch a {
+    color: var(--primary-color);
+    text-decoration: none;
+}
+
+.auth-switch a:hover {
+    text-decoration: underline;
+}
+
 /* 滚动条 */
 ::-webkit-scrollbar {
     width: 8px;

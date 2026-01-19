@@ -3,6 +3,16 @@ use serde_json::Value;
 use std::path::PathBuf;
 use tokio::fs;
 
+/// 认证 Token 信息
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct AuthTokens {
+    pub access_token: String,
+    pub refresh_token: String,
+    pub user_id: String,
+    pub device_id: String,
+    pub expires_at: i64,
+}
+
 pub struct ConfigManager {
     config_dir: PathBuf,
     config_file: PathBuf,
@@ -86,18 +96,58 @@ impl ConfigManager {
     }
 
     pub async fn is_logged_in(&self) -> Result<bool> {
-        // TODO: 检查 token 是否存在
-        Ok(false)
+        let tokens = self.get_auth_tokens().await?;
+        Ok(tokens.is_some())
     }
 
     pub async fn get_user_id(&self) -> Result<String> {
-        // TODO: 从 token 中获取用户 ID
-        Ok(String::new())
+        let tokens = self.get_auth_tokens().await?;
+        Ok(tokens.map(|t| t.user_id).unwrap_or_default())
     }
 
     pub async fn get_device_id(&self) -> Result<String> {
-        // TODO: 从 token 中获取设备 ID
-        Ok(String::new())
+        let tokens = self.get_auth_tokens().await?;
+        Ok(tokens.map(|t| t.device_id).unwrap_or_default())
+    }
+
+    /// 保存认证 Token
+    pub async fn save_auth_tokens(&self, tokens: AuthTokens) -> Result<()> {
+        let mut config = self.get_config().await?;
+        config["auth"] = serde_json::json!({
+            "access_token": tokens.access_token,
+            "refresh_token": tokens.refresh_token,
+            "user_id": tokens.user_id,
+            "device_id": tokens.device_id,
+            "expires_at": tokens.expires_at
+        });
+        self.update_config(config).await
+    }
+
+    /// 获取认证 Token
+    pub async fn get_auth_tokens(&self) -> Result<Option<AuthTokens>> {
+        let config = self.get_config().await?;
+        if let Some(auth) = config.get("auth") {
+            let access_token = auth["access_token"].as_str().unwrap_or("").to_string();
+            if access_token.is_empty() {
+                return Ok(None);
+            }
+            Ok(Some(AuthTokens {
+                access_token,
+                refresh_token: auth["refresh_token"].as_str().unwrap_or("").to_string(),
+                user_id: auth["user_id"].as_str().unwrap_or("").to_string(),
+                device_id: auth["device_id"].as_str().unwrap_or("").to_string(),
+                expires_at: auth["expires_at"].as_i64().unwrap_or(0),
+            }))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// 清除认证 Token
+    pub async fn clear_auth_tokens(&self) -> Result<()> {
+        let mut config = self.get_config().await?;
+        config["auth"] = serde_json::json!({});
+        self.update_config(config).await
     }
 
     pub async fn get_rules(&self) -> Result<Vec<Value>> {

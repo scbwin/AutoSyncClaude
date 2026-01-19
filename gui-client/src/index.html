@@ -310,6 +310,44 @@
                     <input type="text" id="deviceName" class="input" placeholder="我的设备">
                 </div>
                 <button type="submit" class="btn btn-primary btn-block">登录</button>
+                <div class="auth-switch">
+                    没有账户？<a href="#" id="switchToRegister">注册</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 注册对话框 -->
+    <div id="registerDialog" class="dialog">
+        <div class="dialog-content">
+            <div class="dialog-header">
+                <h2>注册</h2>
+                <button class="dialog-close" id="closeRegisterDialog">&times;</button>
+            </div>
+            <form id="registerForm" class="dialog-body">
+                <div class="form-group">
+                    <label>用户名</label>
+                    <input type="text" id="registerUsername" class="input" required
+                           placeholder="3-20位字符" minlength="3" maxlength="20">
+                </div>
+                <div class="form-group">
+                    <label>邮箱</label>
+                    <input type="email" id="registerEmail" class="input" required
+                           placeholder="your@email.com">
+                </div>
+                <div class="form-group">
+                    <label>密码</label>
+                    <input type="password" id="registerPassword" class="input" required
+                           minlength="8" placeholder="至少8位字符">
+                </div>
+                <div class="form-group">
+                    <label>确认密码</label>
+                    <input type="password" id="registerConfirmPassword" class="input" required>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">注册</button>
+                <div class="auth-switch">
+                    已有账户？<a href="#" id="switchToLogin">登录</a>
+                </div>
             </form>
         </div>
     </div>

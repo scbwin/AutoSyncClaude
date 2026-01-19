@@ -3,6 +3,8 @@
 
 mod commands;
 mod config;
+mod grpc;
+mod proto;
 mod state;
 
 use tauri::Manager;
@@ -38,6 +40,7 @@ async fn main() {
             commands::config::init_config,
             commands::config::get_config,
             commands::config::update_config,
+            commands::auth::register,
             commands::auth::login,
             commands::auth::logout,
             commands::auth::get_status,

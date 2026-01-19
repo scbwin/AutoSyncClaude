@@ -14,7 +14,19 @@ const state = {
         checking: false
     },
     connectionCheckInterval: null,
+    username: null,  // 用户名用于显示
 };
+
+// 切换登录/注册模式
+function switchAuthMode(mode) {
+    if (mode === 'register') {
+        document.getElementById('loginDialog').classList.remove('active');
+        document.getElementById('registerDialog').classList.add('active');
+    } else {
+        document.getElementById('registerDialog').classList.remove('active');
+        document.getElementById('loginDialog').classList.add('active');
+    }
+}
 
 // Initialize app
 async function init() {
@@ -75,6 +87,27 @@ function setupEventListeners() {
         await handleLogin();
     });
 
+    // Register dialog
+    document.getElementById('closeRegisterDialog').addEventListener('click', () => {
+        document.getElementById('registerDialog').classList.remove('active');
+    });
+
+    document.getElementById('registerForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await handleRegister();
+    });
+
+    // 切换登录/注册
+    document.getElementById('switchToRegister').addEventListener('click', (e) => {
+        e.preventDefault();
+        switchAuthMode('register');
+    });
+
+    document.getElementById('switchToLogin').addEventListener('click', (e) => {
+        e.preventDefault();
+        switchAuthMode('login');
+    });
+
     // Rule dialog
     document.getElementById('closeRuleDialog').addEventListener('click', () => {
         document.getElementById('ruleDialog').classList.remove('active');
@@ -89,9 +122,13 @@ function setupEventListeners() {
         document.getElementById('ruleDialog').classList.add('active');
     });
 
-    // User info click
-    document.getElementById('userInfo').addEventListener('click', () => {
-        if (!state.isLoggedIn) {
+    // User info click - 支持退出登录
+    document.getElementById('userInfo').addEventListener('click', async () => {
+        if (state.isLoggedIn) {
+            if (confirm('是否要退出登录？')) {
+                await handleLogout();
+            }
+        } else {
             document.getElementById('loginDialog').classList.add('active');
         }
     });
@@ -171,9 +208,10 @@ function updateUI() {
 function updateAuthUI() {
     const userInfo = document.getElementById('userInfo');
     if (state.isLoggedIn) {
-        userInfo.querySelector('.user-avatar').textContent = state.user?.id?.[0]?.toUpperCase() || '?';
-        userInfo.querySelector('.user-name').textContent = '已登录';
-        userInfo.querySelector('.user-email').textContent = state.user?.id || '';
+        const displayName = state.username || state.user?.id || '用户';
+        userInfo.querySelector('.user-avatar').textContent = displayName[0].toUpperCase();
+        userInfo.querySelector('.user-name').textContent = displayName;
+        userInfo.querySelector('.user-email').textContent = '点击退出登录';
     } else {
         userInfo.querySelector('.user-avatar').textContent = '?';
         userInfo.querySelector('.user-name').textContent = '未登录';
@@ -209,6 +247,62 @@ async function handleLogin() {
     } catch (error) {
         console.error('Login failed:', error);
         showNotification('登录失败: ' + error, 'error');
+    }
+}
+
+// Handle register
+async function handleRegister() {
+    const username = document.getElementById('registerUsername').value.trim();
+    const email = document.getElementById('registerEmail').value.trim();
+    const password = document.getElementById('registerPassword').value;
+    const confirmPassword = document.getElementById('registerConfirmPassword').value;
+
+    // 验证
+    if (password !== confirmPassword) {
+        showNotification('两次输入的密码不一致', 'error');
+        return;
+    }
+    if (password.length < 8) {
+        showNotification('密码至少需要8位字符', 'error');
+        return;
+    }
+    if (username.length < 3) {
+        showNotification('用户名至少需要3位字符', 'error');
+        return;
+    }
+
+    try {
+        const result = await window.__TAURI__.invoke('register', {
+            username,
+            email,
+            password,
+        });
+
+        console.log('Register result:', result);
+        showNotification('注册成功，请登录', 'success');
+
+        // 切换到登录界面并预填邮箱
+        switchAuthMode('login');
+        document.getElementById('loginEmail').value = email;
+        document.getElementById('registerForm').reset();
+    } catch (error) {
+        console.error('Register failed:', error);
+        showNotification('注册失败: ' + error, 'error');
+    }
+}
+
+// Handle logout
+async function handleLogout() {
+    try {
+        await window.__TAURI__.invoke('logout');
+        state.isLoggedIn = false;
+        state.user = null;
+        state.username = null;
+        updateAuthUI();
+        showNotification('已退出登录', 'success');
+    } catch (error) {
+        console.error('Logout failed:', error);
+        showNotification('退出失败: ' + error, 'error');
     }
 }
 
