@@ -433,7 +433,8 @@ pub fn load_sync_state(claude_dir: &Path) -> Result<(Option<DateTime<Utc>>, usiz
 
     let last_sync = state["last_sync"]
         .as_str()
-        .and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok());
+        .and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok())
+        .map(|dt| dt.with_timezone(&Utc).to_utc());
 
     let synced_count = state["synced_count"]
         .as_u64()
