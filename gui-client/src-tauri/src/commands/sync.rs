@@ -52,10 +52,11 @@ pub async fn start_sync(
 
     // 克隆状态用于后台更新
     let sync_state_inner = sync_state.inner().clone();
+    let mode_clone = mode.clone();
 
     // 启动后台同步任务
     tauri::async_runtime::spawn(async move {
-        if let Err(e) = run_sync_task(mode, claude_dir, sync_state_inner).await {
+        if let Err(e) = run_sync_task(mode_clone, claude_dir, sync_state_inner).await {
             error!("同步任务失败: {}", e);
         }
     });
