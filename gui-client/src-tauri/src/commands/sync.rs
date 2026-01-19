@@ -11,13 +11,51 @@ use tauri::State;
 use tracing::{debug, error, info, warn};
 use chrono::{DateTime, Utc};
 
-/// 文件同步状态
+/// 文件同步状态（已弃用，保留用于兼容）
 #[derive(Debug, Clone, serde::Serialize)]
 struct FileSyncInfo {
     path: String,
     hash: String,
     size: u64,
     modified: bool,
+}
+
+/// 节点类型
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum NodeType {
+    File,
+    Directory,
+}
+
+/// 同步状态
+#[derive(Debug, Clone, serde::Serialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum SyncStatus {
+    Synced,      // 已同步
+    Pending,     // 待同步
+    NotOnServer, // 未同步过
+}
+
+/// 文件树节点
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct FileTreeNode {
+    pub name: String,
+    pub path: String,
+    pub node_type: NodeType,
+    pub sync_status: SyncStatus,
+    pub size: u64,
+    pub hash: String,
+    pub children: Vec<FileTreeNode>,
+    pub checked: bool,
+    pub exists_on_server: bool,
+}
+
+/// 忽略模式信息
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct IgnorePattern {
+    pub pattern: String,
+    pub is_active: bool,
 }
 
 #[tauri::command]
@@ -538,4 +576,455 @@ pub async fn get_sync_status(
     });
 
     Ok(status)
+}
+
+/// 获取文件树
+#[tauri::command]
+pub async fn get_file_tree(
+    config_manager: State<'_, Arc<Mutex<ConfigManager>>>,
+    sync_state: State<'_, Arc<Mutex<SyncState>>>,
+) -> Result<FileTreeNode, String> {
+    // 获取配置
+    let manager = config_manager.lock().await;
+    let config = manager.get_config().await.map_err(|e| e.to_string())?;
+    drop(manager);
+
+    // 获取 Claude 目录路径
+    let claude_dir = config["sync"]["claude_dir"]
+        .as_str()
+        .unwrap_or("")
+        .to_string();
+
+    let claude_dir = PathBuf::from(claude_dir);
+
+    if !claude_dir.exists() {
+        return Ok(FileTreeNode {
+            name: claude_dir.file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("Root")
+                .to_string(),
+            path: String::new(),
+            node_type: NodeType::Directory,
+            sync_status: SyncStatus::NotOnServer,
+            size: 0,
+            hash: String::new(),
+            children: Vec::new(),
+            checked: true,
+            exists_on_server: false,
+        });
+    }
+
+    // 获取用户 ID
+    let user_id = {
+        let state = sync_state.lock().await;
+        state.get_user_id().map(|s| s.to_string()).unwrap_or_else(|| "guest".to_string())
+    };
+
+    // 加载本地文件状态缓存
+    let cached_states = load_file_cache(&claude_dir, &user_id).unwrap_or_default();
+
+    // 加载自定义忽略模式
+    let custom_patterns = load_custom_ignore_patterns(&claude_dir, &user_id)?;
+
+    // 构建文件树
+    build_file_tree(&claude_dir, &claude_dir, &cached_states, &custom_patterns)
+}
+
+/// 构建文件树
+fn build_file_tree(
+    base_dir: &Path,
+    current_dir: &Path,
+    cached_states: &HashMap<String, String>,
+    ignore_patterns: &[String],
+) -> Result<FileTreeNode, String> {
+    let dir_name = if current_dir == base_dir {
+        current_dir.file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("Root")
+            .to_string()
+    } else {
+        current_dir.file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("Unknown")
+            .to_string()
+    };
+
+    let rel_path = if current_dir == base_dir {
+        String::new()
+    } else {
+        current_dir
+            .strip_prefix(base_dir)
+            .unwrap_or(current_dir)
+            .to_string_lossy()
+            .replace('\\', "/")
+    };
+
+    let mut children = Vec::new();
+    let mut total_size = 0u64;
+    let mut has_modified = false;
+
+    // 读取目录内容
+    if let Ok(entries) = std::fs::read_dir(current_dir) {
+        let mut dirs = Vec::new();
+        let mut files = Vec::new();
+
+        for entry in entries.filter_map(|e| e.ok()) {
+            let path = entry.path();
+            let file_name = entry.file_name();
+
+            // 跳过隐藏文件
+            if file_name.to_string_lossy().starts_with('.') {
+                continue;
+            }
+
+            // 检查忽略模式
+            let rel_path_str = if current_dir == base_dir {
+                file_name.to_string_lossy().to_string()
+            } else {
+                format!("{}/{}", rel_path, file_name.to_string_lossy())
+            };
+
+            if should_ignore(&rel_path_str, ignore_patterns) {
+                continue;
+            }
+
+            if path.is_dir() {
+                // 检查是否在默认排除目录中
+                let dir_name_str = file_name.to_string_lossy();
+                let exclude_dirs = vec![
+                    "cache", "downloads", "image-cache", "file-history",
+                    "shell-snapshots", "statsig", "blob", "zdocs",
+                ];
+                if exclude_dirs.contains(&dir_name_str.as_ref()) {
+                    continue;
+                }
+                dirs.push((path, file_name.to_string_lossy().to_string()));
+            } else if path.is_file() {
+                // 检查文件扩展名
+                if let Some(ext) = path.extension() {
+                    let ext_str = ext.to_string_lossy().to_lowercase();
+
+                    let exclude_exts = vec![
+                        "tmp", "log", "swp", "DS_Store", "pdb", "exe", "dll", "so", "dylib",
+                        "rlib", "rmeta", "o", "a", "lib",
+                    ];
+
+                    if exclude_exts.contains(&ext_str.as_str()) {
+                        continue;
+                    }
+
+                    let allowed_exts = vec![
+                        "json", "md", "txt", "toml", "yaml", "yml", "rs", "js", "ts", "py",
+                        "sh", "bat", "zsh", "fish", "env", "proto",
+                    ];
+
+                    if !allowed_exts.contains(&ext_str.as_str()) {
+                        continue;
+                    }
+
+                    files.push((path, file_name.to_string_lossy().to_string()));
+                }
+            }
+        }
+
+        // 排序
+        dirs.sort_by(|a, b| a.1.cmp(&b.1));
+        files.sort_by(|a, b| a.1.cmp(&b.1));
+
+        // 处理子目录
+        for (dir_path, _name) in dirs {
+            if let Ok(child_node) = build_file_tree(base_dir, &dir_path, cached_states, ignore_patterns) {
+                total_size += child_node.size;
+                if child_node.sync_status == SyncStatus::Pending {
+                    has_modified = true;
+                }
+                children.push(child_node);
+            }
+        }
+
+        // 处理文件
+        for (file_path, name) in files {
+            if let Ok((hash, size)) = calculate_file_hash(&file_path) {
+                let file_rel_path = if current_dir == base_dir {
+                    name.clone()
+                } else {
+                    format!("{}/{}", rel_path, name)
+                };
+
+                let cached_hash = cached_states.get(&file_rel_path);
+                let sync_status = if let Some(ch) = cached_hash {
+                    if ch == &hash {
+                        SyncStatus::Synced
+                    } else {
+                        has_modified = true;
+                        SyncStatus::Pending
+                    }
+                } else {
+                    SyncStatus::NotOnServer
+                };
+
+                let exists_on_server = cached_hash.is_some();
+
+                total_size += size;
+
+                children.push(FileTreeNode {
+                    name,
+                    path: file_rel_path,
+                    node_type: NodeType::File,
+                    sync_status,
+                    size,
+                    hash,
+                    children: Vec::new(),
+                    checked: true,
+                    exists_on_server,
+                });
+            }
+        }
+    }
+
+    // 计算目录的同步状态
+    let sync_status = if children.is_empty() {
+        SyncStatus::NotOnServer
+    } else if has_modified {
+        SyncStatus::Pending
+    } else {
+        // 检查所有子项是否都已同步
+        let all_synced = children.iter()
+            .all(|c| c.sync_status == SyncStatus::Synced || c.sync_status == SyncStatus::NotOnServer);
+        if all_synced && children.iter().any(|c| c.sync_status == SyncStatus::Synced) {
+            SyncStatus::Synced
+        } else if children.iter().all(|c| c.sync_status == SyncStatus::NotOnServer) {
+            SyncStatus::NotOnServer
+        } else {
+            SyncStatus::Pending
+        }
+    };
+
+    // 检查目录是否在服务器上存在
+    let exists_on_server = children.iter().any(|c| c.exists_on_server);
+
+    Ok(FileTreeNode {
+        name: dir_name,
+        path: rel_path,
+        node_type: NodeType::Directory,
+        sync_status,
+        size: total_size,
+        hash: String::new(),
+        children,
+        checked: true,
+        exists_on_server,
+    })
+}
+
+/// 检查路径是否应该被忽略
+fn should_ignore(path: &str, patterns: &[String]) -> bool {
+    for pattern in patterns {
+        if matches_pattern(path, pattern) {
+            return true;
+        }
+    }
+    false
+}
+
+/// 简单的通配符匹配
+fn matches_pattern(path: &str, pattern: &str) -> bool {
+    let pattern = pattern.trim();
+
+    // 处理 ** 通配符（匹配任意多级目录）
+    if pattern.contains("**") {
+        let parts: Vec<&str> = pattern.split("**").collect();
+        if parts.len() == 2 {
+            let prefix = parts[0].trim_end_matches('/');
+            let suffix = parts[1].trim_start_matches('/');
+
+            if suffix.is_empty() {
+                // 模式如 "cache/**" - 匹配以 prefix 开头的所有路径
+                return path.starts_with(prefix) || path == prefix.trim_end_matches('/');
+            }
+
+            // 检查是否匹配前缀和后缀
+            if path.starts_with(prefix) && path.ends_with(suffix) {
+                return true;
+            }
+        }
+    }
+
+    // 处理 * 通配符（匹配单级目录或文件名）
+    if pattern.contains('*') && !pattern.contains("**") {
+        let pattern_regex = pattern
+            .replace('.', "\\.")
+            .replace('*', "[^/]*")
+            .replace('?', "[^/]");
+        if let Ok(re) = regex::Regex::new(&format!("^{}$", pattern_regex)) {
+            if re.is_match(path) {
+                return true;
+            }
+            // 检查路径的最后一部分是否匹配
+            if let Some(last_part) = path.rsplit('/').next() {
+                if re.is_match(last_part) {
+                    return true;
+                }
+            }
+        }
+    }
+
+    // 精确匹配
+    if path == pattern || path.starts_with(&format!("{}/", pattern)) {
+        return true;
+    }
+
+    false
+}
+
+/// 加载自定义忽略模式
+fn load_custom_ignore_patterns(claude_dir: &Path, user_id: &str) -> Result<Vec<String>, String> {
+    let ignore_file = claude_dir.join(format!(".sync-ignore-{}.json", user_id));
+
+    if !ignore_file.exists() {
+        return Ok(Vec::new());
+    }
+
+    let content = std::fs::read_to_string(&ignore_file)
+        .map_err(|e| format!("无法读取忽略配置: {}", e))?;
+
+    let data: serde_json::Value = serde_json::from_str(&content)
+        .map_err(|e| format!("无法解析忽略配置: {}", e))?;
+
+    let patterns: Vec<String> = data["patterns"]
+        .as_array()
+        .unwrap_or(&vec![])
+        .iter()
+        .filter_map(|p| p.as_str().map(|s| s.to_string()))
+        .collect();
+
+    Ok(patterns)
+}
+
+/// 保存自定义忽略模式
+fn save_custom_ignore_patterns(claude_dir: &Path, user_id: &str, patterns: &[String]) -> Result<(), String> {
+    let ignore_file = claude_dir.join(format!(".sync-ignore-{}.json", user_id));
+
+    let data = serde_json::json!({
+        "patterns": patterns
+    });
+
+    let content = serde_json::to_string_pretty(&data)
+        .map_err(|e| format!("无法序列化忽略配置: {}", e))?;
+
+    std::fs::write(&ignore_file, content)
+        .map_err(|e| format!("无法写入忽略配置: {}", e))?;
+
+    Ok(())
+}
+
+/// 获取忽略模式列表
+#[tauri::command]
+pub async fn get_ignore_patterns(
+    config_manager: State<'_, Arc<Mutex<ConfigManager>>>,
+    sync_state: State<'_, Arc<Mutex<SyncState>>>,
+) -> Result<Vec<IgnorePattern>, String> {
+    let manager = config_manager.lock().await;
+    let config = manager.get_config().await.map_err(|e| e.to_string())?;
+    drop(manager);
+
+    let claude_dir = PathBuf::from(config["sync"]["claude_dir"]
+        .as_str()
+        .unwrap_or(""));
+
+    let user_id = {
+        let state = sync_state.lock().await;
+        state.get_user_id().map(|s| s.to_string()).unwrap_or_else(|| "guest".to_string())
+    };
+
+    let patterns = load_custom_ignore_patterns(&claude_dir, &user_id)?;
+
+    Ok(patterns.into_iter()
+        .map(|p| IgnorePattern {
+            pattern: p,
+            is_active: true,
+        })
+        .collect())
+}
+
+/// 添加忽略模式
+#[tauri::command]
+pub async fn add_ignore_pattern(
+    pattern: String,
+    config_manager: State<'_, Arc<Mutex<ConfigManager>>>,
+    sync_state: State<'_, Arc<Mutex<SyncState>>>,
+) -> Result<(), String> {
+    let pattern = pattern.trim().to_string();
+    if pattern.is_empty() {
+        return Err("忽略模式不能为空".to_string());
+    }
+
+    let manager = config_manager.lock().await;
+    let config = manager.get_config().await.map_err(|e| e.to_string())?;
+    drop(manager);
+
+    let claude_dir = PathBuf::from(config["sync"]["claude_dir"]
+        .as_str()
+        .unwrap_or(""));
+
+    let user_id = {
+        let state = sync_state.lock().await;
+        state.get_user_id().map(|s| s.to_string()).unwrap_or_else(|| "guest".to_string())
+    };
+
+    let mut patterns = load_custom_ignore_patterns(&claude_dir, &user_id)?;
+
+    if !patterns.contains(&pattern) {
+        patterns.push(pattern);
+        save_custom_ignore_patterns(&claude_dir, &user_id, &patterns)?;
+    }
+
+    Ok(())
+}
+
+/// 删除忽略模式
+#[tauri::command]
+pub async fn remove_ignore_pattern(
+    pattern: String,
+    config_manager: State<'_, Arc<Mutex<ConfigManager>>>,
+    sync_state: State<'_, Arc<Mutex<SyncState>>>,
+) -> Result<(), String> {
+    let manager = config_manager.lock().await;
+    let config = manager.get_config().await.map_err(|e| e.to_string())?;
+    drop(manager);
+
+    let claude_dir = PathBuf::from(config["sync"]["claude_dir"]
+        .as_str()
+        .unwrap_or(""));
+
+    let user_id = {
+        let state = sync_state.lock().await;
+        state.get_user_id().map(|s| s.to_string()).unwrap_or_else(|| "guest".to_string())
+    };
+
+    let mut patterns = load_custom_ignore_patterns(&claude_dir, &user_id)?;
+    patterns.retain(|p| p != &pattern);
+
+    save_custom_ignore_patterns(&claude_dir, &user_id, &patterns)?;
+
+    Ok(())
+}
+
+/// 从服务器删除文件
+#[tauri::command]
+pub async fn delete_file_from_server(
+    file_path: String,
+    sync_state: State<'_, Arc<Mutex<SyncState>>>,
+) -> Result<(), String> {
+    // TODO: 实现 gRPC 调用从服务器删除文件
+    info!("请求从服务器删除文件: {}", file_path);
+
+    // 清除本地缓存中的该文件记录
+    let user_id = {
+        let state = sync_state.lock().await;
+        state.get_user_id().map(|s| s.to_string()).unwrap_or_else(|| "guest".to_string())
+    };
+
+    // 这里需要访问配置来获取 claude_dir
+    // 暂时返回成功，实际需要实现 gRPC 调用
+    Ok(())
 }

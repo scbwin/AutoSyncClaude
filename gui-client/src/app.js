@@ -15,6 +15,12 @@ const state = {
     },
     connectionCheckInterval: null,
     username: null,  // 用户名用于显示
+    // 文件树相关状态
+    fileTree: null,
+    expandedFolders: new Set(['root']),
+    selectedForSync: new Set(),
+    contextMenuTarget: null,
+    customIgnorePatterns: [],
 };
 
 // 切换登录/注册模式
@@ -142,6 +148,38 @@ function setupEventListeners() {
         await handleStopSync();
     });
 
+    document.getElementById('refreshTreeBtn').addEventListener('click', async () => {
+        await loadFileTree();
+    });
+
+    document.getElementById('editIgnoreBtn').addEventListener('click', async () => {
+        await openIgnoreDialog();
+    });
+
+    // 忽略对话框
+    document.getElementById('closeIgnoreDialog').addEventListener('click', closeIgnoreDialog);
+    document.getElementById('closeIgnoreDialogBtn').addEventListener('click', closeIgnoreDialog);
+    document.getElementById('addIgnorePatternBtn').addEventListener('click', handleAddIgnorePattern);
+    document.getElementById('newIgnorePattern').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            handleAddIgnorePattern();
+        }
+    });
+
+    // 右键菜单
+    document.getElementById('ctxAddToIgnore').addEventListener('click', handleAddToIgnore);
+    document.getElementById('ctxDeleteFromServer').addEventListener('click', handleDeleteFromServer);
+
+    // 点击其他地方关闭右键菜单
+    document.addEventListener('click', hideContextMenu);
+    document.addEventListener('contextmenu', (e) => {
+        // 如果不是在文件树上，则隐藏右键菜单
+        if (!e.target.closest('#fileTreeContainer')) {
+            hideContextMenu();
+        }
+    });
+
     // Settings
     document.getElementById('saveSettingsBtn').addEventListener('click', async () => {
         await handleSaveSettings();
@@ -185,6 +223,7 @@ function switchView(viewName) {
             break;
         case 'sync':
             loadSyncStatus();
+            loadFileTree();
             break;
         case 'rules':
             loadRules();
@@ -392,66 +431,429 @@ async function loadSyncStatus() {
             document.getElementById('progressBar').style.width = status.progress + '%';
             pollSyncStatus();
         }
-
-        // 加载待同步文件列表
-        await loadPendingFiles();
     } catch (error) {
         console.error('Failed to load sync status:', error);
     }
 }
 
-// Load pending files
+// Load pending files (已弃用，保留用于兼容)
 async function loadPendingFiles() {
     try {
         const files = await window.__TAURI__.invoke('get_pending_files');
         state.pendingFiles = files;
-        renderFileList();
     } catch (error) {
         console.error('Failed to load pending files:', error);
     }
 }
 
-// Render file list
-function renderFileList() {
-    const container = document.getElementById('fileList');
+// ========== 文件树相关函数 ==========
 
-    if (!state.pendingFiles || state.pendingFiles.length === 0) {
+// 加载文件树
+async function loadFileTree() {
+    const container = document.getElementById('fileTreeContainer');
+    container.innerHTML = '<div class="empty-state">加载中...</div>';
+
+    try {
+        const tree = await window.__TAURI__.invoke('get_file_tree');
+        state.fileTree = tree;
+        renderFileTree();
+        updateFileSummary();
+    } catch (error) {
+        console.error('Failed to load file tree:', error);
+        container.innerHTML = '<div class="empty-state">加载失败: ' + escapeHtml(error) + '</div>';
+    }
+}
+
+// 渲染文件树
+function renderFileTree() {
+    const container = document.getElementById('fileTreeContainer');
+
+    if (!state.fileTree) {
         container.innerHTML = '<div class="empty-state">暂无文件</div>';
         return;
     }
 
-    // 统计文件
-    const modifiedFiles = state.pendingFiles.filter(f => f.modified);
-    const totalSize = state.pendingFiles.reduce((sum, f) => sum + f.size, 0);
+    container.innerHTML = renderTreeNode(state.fileTree, 0, '');
+}
 
-    const html = `
-        <div class="file-summary">
-            <span>总文件数: ${state.pendingFiles.length}</span>
-            <span>待同步: ${modifiedFiles.length}</span>
-            <span>总大小: ${formatSize(totalSize)}</span>
-        </div>
-        <div class="file-items">
-            ${state.pendingFiles.map(file => `
-                <div class="file-item ${file.modified ? 'modified' : ''}">
-                    <div class="file-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                            <polyline points="14 2 14 8 20 8"></polyline>
-                        </svg>
-                    </div>
-                    <div class="file-info">
-                        <div class="file-name">${escapeHtml(file.path)}</div>
-                        <div class="file-meta">
-                            <span>${formatSize(file.size)}</span>
-                            ${file.modified ? '<span class="status-modified">待同步</span>' : '<span class="status-current">已同步</span>'}
-                        </div>
-                    </div>
-                </div>
-            `).join('')}
+// 渲染树节点
+function renderTreeNode(node, depth, parentPath) {
+    const fullPath = parentPath ? `${parentPath}/${node.path}` : node.path;
+    const isExpanded = state.expandedFolders.has(fullPath || 'root');
+    const hasChildren = node.children && node.children.length > 0;
+    const isChecked = state.selectedForSync.has(fullPath) || (!state.selectedForSync.has(fullPath) && node.checked);
+
+    // 节点缩进
+    const indentStyle = `padding-left: ${depth * 20 + 8}px;`;
+
+    // 图标
+    let iconSvg = '';
+    if (node.node_type === 'directory') {
+        iconSvg = `
+            <svg class="tree-icon-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+            </svg>
+        `;
+    } else {
+        iconSvg = `
+            <svg class="tree-icon-file" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+            </svg>
+        `;
+    }
+
+    // 状态图标
+    let statusIcon = '';
+    switch (node.sync_status) {
+        case 'synced':
+            statusIcon = `
+                <svg class="tree-status synced" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                </svg>
+            `;
+            break;
+        case 'pending':
+            statusIcon = `
+                <svg class="tree-status pending" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+            `;
+            break;
+        case 'not_on_server':
+            statusIcon = `
+                <svg class="tree-status not-on-server" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <circle cx="12" cy="12" r="10"></circle>
+                </svg>
+            `;
+            break;
+    }
+
+    // Chevron 图标（仅用于有子项的目录）
+    let chevronHtml = '';
+    if (node.node_type === 'directory') {
+        const chevronClass = isExpanded ? 'expanded' : '';
+        chevronHtml = `
+            <svg class="tree-chevron ${chevronClass}" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 data-path="${escapeHtml(fullPath || 'root')}"
+                 onclick="event.stopPropagation(); toggleFolder('${escapeHtml(fullPath || 'root')}')">
+                <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+        `;
+    }
+
+    // 构建节点 HTML
+    let html = `
+        <div class="tree-node"
+             data-path="${escapeHtml(fullPath || 'root')}"
+             data-type="${node.node_type}"
+             data-exists-on-server="${node.exists_on_server}"
+             style="${indentStyle}"
+             oncontextmenu="showContextMenu(event, '${escapeHtml(fullPath || 'root')}', '${node.node_type}', ${node.exists_on_server})">
+            ${chevronHtml}
+            <input type="checkbox"
+                   class="tree-checkbox"
+                   ${isChecked ? 'checked' : ''}
+                   data-path="${escapeHtml(fullPath || 'root')}"
+                   data-type="${node.node_type}"
+                   onchange="handleCheckboxChange('${escapeHtml(fullPath || 'root')}', this.checked, '${node.node_type}')">
+            <div class="tree-icon">${iconSvg}</div>
+            <span class="tree-name" title="${escapeHtml(node.path || node.name)}">${escapeHtml(node.name)}</span>
+            <span class="tree-status-icon">${statusIcon}</span>
+            ${node.node_type === 'file' ? `<span class="tree-size">${formatSize(node.size)}</span>` : ''}
         </div>
     `;
 
-    container.innerHTML = html;
+    // 渲染子节点（如果展开）
+    if (hasChildren && isExpanded) {
+        html += '<div class="tree-children">';
+        for (const child of node.children) {
+            html += renderTreeNode(child, depth + 1, fullPath || 'root');
+        }
+        html += '</div>';
+    }
+
+    return html;
+}
+
+// 切换文件夹展开/折叠
+function toggleFolder(path) {
+    if (state.expandedFolders.has(path)) {
+        state.expandedFolders.delete(path);
+    } else {
+        state.expandedFolders.add(path);
+    }
+    renderFileTree();
+}
+
+// 处理复选框变化
+function handleCheckboxChange(path, checked, nodeType) {
+    // 更新选中状态
+    if (checked) {
+        state.selectedForSync.add(path);
+    } else {
+        state.selectedForSync.delete(path);
+    }
+
+    // 如果是目录，递归更新所有子项
+    if (state.fileTree) {
+        updateChildrenCheckedState(state.fileTree, path, checked);
+    }
+
+    renderFileTree();
+    updateFileSummary();
+}
+
+// 递归更新子项的选中状态
+function updateChildrenCheckedState(node, path, checked) {
+    const nodePath = node.path || (node === state.fileTree ? 'root' : '');
+    const fullPath = nodePath;
+
+    if (fullPath === path || (path === 'root' && node === state.fileTree)) {
+        // 找到目标节点，更新其所有子项
+        setAllChecked(node, checked);
+        return true;
+    }
+
+    if (node.children) {
+        for (const child of node.children) {
+            if (updateChildrenCheckedState(child, path, checked)) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+// 设置节点及其所有子项的选中状态
+function setAllChecked(node, checked) {
+    const nodePath = node.path || (node === state.fileTree ? 'root' : '');
+    if (checked) {
+        state.selectedForSync.add(nodePath);
+    } else {
+        state.selectedForSync.delete(nodePath);
+    }
+    node.checked = checked;
+
+    if (node.children) {
+        for (const child of node.children) {
+            setAllChecked(child, checked);
+        }
+    }
+}
+
+// 更新文件摘要信息
+function updateFileSummary() {
+    const summaryEl = document.getElementById('fileSummary');
+    if (!state.fileTree) {
+        summaryEl.innerHTML = '';
+        return;
+    }
+
+    const stats = countFiles(state.fileTree);
+    summaryEl.innerHTML = `
+        <span>总文件: ${stats.total}</span>
+        <span>待同步: ${stats.pending}</span>
+        <span>已同步: ${stats.synced}</span>
+        <span>大小: ${formatSize(stats.size)}</span>
+    `;
+}
+
+// 统计文件数量
+function countFiles(node) {
+    let total = 0;
+    let pending = 0;
+    let synced = 0;
+    let size = 0;
+
+    if (node.node_type === 'file') {
+        total++;
+        size += node.size;
+        if (node.sync_status === 'pending') pending++;
+        else if (node.sync_status === 'synced') synced++;
+    }
+
+    if (node.children) {
+        for (const child of node.children) {
+            const childStats = countFiles(child);
+            total += childStats.total;
+            pending += childStats.pending;
+            synced += childStats.synced;
+            size += childStats.size;
+        }
+    }
+
+    return { total, pending, synced, size };
+}
+
+// ========== 右键菜单相关函数 ==========
+
+// 显示右键菜单
+function showContextMenu(event, path, nodeType, existsOnServer) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    state.contextMenuTarget = { path, nodeType, existsOnServer };
+
+    const menu = document.getElementById('contextMenu');
+
+    // 根据文件是否在服务器上显示/隐藏"从服务器删除"选项
+    const deleteOption = document.getElementById('ctxDeleteFromServer');
+    if (existsOnServer) {
+        deleteOption.style.display = 'flex';
+    } else {
+        deleteOption.style.display = 'none';
+    }
+
+    menu.style.display = 'block';
+    menu.style.left = event.pageX + 'px';
+    menu.style.top = event.pageY + 'px';
+}
+
+// 隐藏右键菜单
+function hideContextMenu() {
+    const menu = document.getElementById('contextMenu');
+    menu.style.display = 'none';
+    state.contextMenuTarget = null;
+}
+
+// 添加到忽略列表
+async function handleAddToIgnore() {
+    if (!state.contextMenuTarget) return;
+
+    const { path } = state.contextMenuTarget;
+    let pattern = path;
+
+    // 如果是目录，添加 /** 后缀
+    if (state.contextMenuTarget.nodeType === 'directory') {
+        pattern = `${path}/**`;
+    } else if (path.includes('/')) {
+        // 如果是文件，可以只忽略文件名或完整路径
+        const parts = path.split('/');
+        const fileName = parts[parts.length - 1];
+        if (parts.length > 1) {
+            pattern = path; // 使用完整路径
+        }
+    }
+
+    try {
+        await window.__TAURI__.invoke('add_ignore_pattern', { pattern });
+        showNotification(`已添加到忽略列表: ${pattern}`, 'success');
+        hideContextMenu();
+        await loadFileTree(); // 重新加载文件树
+    } catch (error) {
+        console.error('Failed to add ignore pattern:', error);
+        showNotification('添加忽略模式失败: ' + error, 'error');
+    }
+}
+
+// 从服务器删除
+async function handleDeleteFromServer() {
+    if (!state.contextMenuTarget) return;
+
+    const { path } = state.contextMenuTarget;
+
+    if (!confirm(`确定要从服务器删除 "${path}" 吗？\n\n注意：这只会删除服务器上的文件，本地文件将保留。`)) {
+        return;
+    }
+
+    try {
+        await window.__TAURI__.invoke('delete_file_from_server', { filePath: path });
+        showNotification(`已从服务器删除: ${path}`, 'success');
+        hideContextMenu();
+        await loadFileTree(); // 重新加载文件树
+    } catch (error) {
+        console.error('Failed to delete from server:', error);
+        showNotification('删除失败: ' + error, 'error');
+    }
+}
+
+// ========== 忽略列表对话框相关函数 ==========
+
+// 打开忽略列表对话框
+async function openIgnoreDialog() {
+    document.getElementById('ignoreDialog').classList.add('active');
+    await loadIgnorePatterns();
+}
+
+// 关闭忽略列表对话框
+function closeIgnoreDialog() {
+    document.getElementById('ignoreDialog').classList.remove('active');
+    document.getElementById('newIgnorePattern').value = '';
+}
+
+// 加载忽略模式列表
+async function loadIgnorePatterns() {
+    try {
+        const patterns = await window.__TAURI__.invoke('get_ignore_patterns');
+        state.customIgnorePatterns = patterns;
+        renderIgnorePatterns();
+    } catch (error) {
+        console.error('Failed to load ignore patterns:', error);
+    }
+}
+
+// 渲染忽略模式列表
+function renderIgnorePatterns() {
+    const container = document.getElementById('ignorePatternsList');
+    const countEl = document.getElementById('ignoreCount');
+
+    countEl.textContent = `${state.customIgnorePatterns.length} 个模式`;
+
+    if (state.customIgnorePatterns.length === 0) {
+        container.innerHTML = '<div class="empty-state">暂无忽略模式</div>';
+        return;
+    }
+
+    container.innerHTML = state.customIgnorePatterns.map((p, index) => `
+        <div class="ignore-pattern-item">
+            <code class="ignore-pattern-code">${escapeHtml(p.pattern)}</code>
+            <button class="btn-icon" onclick="handleRemoveIgnorePattern(${index})" title="删除">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+    `).join('');
+}
+
+// 添加忽略模式
+async function handleAddIgnorePattern() {
+    const input = document.getElementById('newIgnorePattern');
+    const pattern = input.value.trim();
+
+    if (!pattern) {
+        showNotification('请输入忽略模式', 'error');
+        return;
+    }
+
+    try {
+        await window.__TAURI__.invoke('add_ignore_pattern', { pattern });
+        input.value = '';
+        await loadIgnorePatterns();
+        showNotification('忽略模式添加成功', 'success');
+    } catch (error) {
+        console.error('Failed to add ignore pattern:', error);
+        showNotification('添加失败: ' + error, 'error');
+    }
+}
+
+// 删除忽略模式
+async function handleRemoveIgnorePattern(index) {
+    const pattern = state.customIgnorePatterns[index]?.pattern;
+    if (!pattern) return;
+
+    try {
+        await window.__TAURI__.invoke('remove_ignore_pattern', { pattern });
+        await loadIgnorePatterns();
+        showNotification('忽略模式已删除', 'success');
+    } catch (error) {
+        console.error('Failed to remove ignore pattern:', error);
+        showNotification('删除失败: ' + error, 'error');
+    }
 }
 
 // Format file size
@@ -782,6 +1184,14 @@ function escapeHtml(text) {
 
 // Make handleRemoveRule available globally
 window.handleRemoveRule = handleRemoveRule;
+
+// Make tree-related functions available globally
+window.toggleFolder = toggleFolder;
+window.handleCheckboxChange = handleCheckboxChange;
+window.showContextMenu = showContextMenu;
+window.handleAddToIgnore = handleAddToIgnore;
+window.handleDeleteFromServer = handleDeleteFromServer;
+window.handleRemoveIgnorePattern = handleRemoveIgnorePattern;
 
 // Initialize when DOM is ready
 if (document.readyState === 'loading') {

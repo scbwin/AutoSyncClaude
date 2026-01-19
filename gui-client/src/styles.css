@@ -788,3 +788,266 @@ h3 {
 ::-webkit-scrollbar-thumb:hover {
     background: var(--text-secondary);
 }
+
+/* ========== 文件树样式 ========== */
+
+/* 文件列表头部 */
+.file-list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.file-list-header h3 {
+    margin: 0;
+}
+
+.file-summary {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+/* 文件树容器 */
+.file-tree-container {
+    max-height: 500px;
+    overflow-y: auto;
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    background: var(--bg-secondary);
+}
+
+/* 树节点 */
+.tree-node {
+    display: flex;
+    align-items: center;
+    padding: 0.375rem 0.5rem;
+    cursor: pointer;
+    transition: background 0.2s;
+    user-select: none;
+    position: relative;
+}
+
+.tree-node:hover {
+    background: var(--bg-tertiary);
+}
+
+/* Chevron 展开/折叠图标 */
+.tree-chevron {
+    width: 16px;
+    height: 16px;
+    margin-right: 0.25rem;
+    cursor: pointer;
+    transition: transform 0.2s;
+    flex-shrink: 0;
+    stroke-width: 2;
+}
+
+.tree-chevron.expanded {
+    transform: rotate(90deg);
+}
+
+/* 树复选框 */
+.tree-checkbox {
+    width: 16px;
+    height: 16px;
+    margin-right: 0.5rem;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+/* 树图标 */
+.tree-icon {
+    width: 18px;
+    height: 18px;
+    margin-right: 0.5rem;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.tree-icon-folder,
+.tree-icon-file {
+    stroke-width: 2;
+    color: var(--text-secondary);
+}
+
+.tree-icon-folder {
+    color: #f59e0b;
+}
+
+.tree-icon-file {
+    color: var(--text-secondary);
+}
+
+/* 树名称 */
+.tree-name {
+    flex: 1;
+    font-size: 0.875rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* 树大小 */
+.tree-size {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-left: 0.5rem;
+}
+
+/* 树状态图标 */
+.tree-status-icon {
+    margin-left: 0.5rem;
+    flex-shrink: 0;
+}
+
+.tree-status {
+    width: 16px;
+    height: 16px;
+    stroke-width: 2;
+}
+
+.tree-status.synced {
+    color: var(--success-color);
+}
+
+.tree-status.pending {
+    color: var(--warning-color);
+}
+
+.tree-status.not-on-server {
+    color: var(--text-secondary);
+    opacity: 0.5;
+}
+
+/* 树子节点容器 */
+.tree-children {
+    position: relative;
+}
+
+/* ========== 右键菜单样式 ========== */
+
+.context-menu {
+    position: fixed;
+    min-width: 180px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    box-shadow: var(--shadow-lg);
+    z-index: 1000;
+    padding: 0.25rem 0;
+}
+
+.context-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.625rem 1rem;
+    cursor: pointer;
+    font-size: 0.875rem;
+    transition: background 0.2s;
+    color: var(--text-primary);
+}
+
+.context-menu-item:hover {
+    background: var(--bg-secondary);
+}
+
+.context-menu-item svg {
+    width: 16px;
+    height: 16px;
+    stroke-width: 2;
+}
+
+.context-menu-separator {
+    height: 1px;
+    background: var(--border-color);
+    margin: 0.25rem 0;
+}
+
+/* ========== 忽略列表对话框样式 ========== */
+
+.dialog-content-large {
+    width: 90%;
+    max-width: 600px;
+}
+
+/* 忽略模式表单 */
+.ignore-patterns-form {
+    margin-bottom: 1rem;
+}
+
+.help-text {
+    display: block;
+    margin-top: 0.5rem;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+/* 输入组 */
+.input-group {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.input-group .input {
+    flex: 1;
+}
+
+/* 忽略模式列表容器 */
+.ignore-patterns-list-container {
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    overflow: hidden;
+}
+
+.ignore-patterns-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.ignore-patterns-list {
+    max-height: 250px;
+    overflow-y: auto;
+}
+
+.ignore-pattern-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.625rem 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.ignore-pattern-item:last-child {
+    border-bottom: none;
+}
+
+.ignore-pattern-code {
+    font-family: monospace;
+    font-size: 0.875rem;
+    color: var(--primary-color);
+    background: rgba(59, 130, 246, 0.1);
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+}
+
+/* 对话框操作区 */
+.dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-color);
+}

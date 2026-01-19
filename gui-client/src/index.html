@@ -157,6 +157,19 @@
                         </svg>
                         停止同步
                     </button>
+                    <button id="refreshTreeBtn" class="btn btn-secondary">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"></path>
+                        </svg>
+                        刷新
+                    </button>
+                    <button id="editIgnoreBtn" class="btn btn-secondary">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                            <circle cx="12" cy="12" r="3"></circle>
+                        </svg>
+                        忽略列表
+                    </button>
                 </div>
 
                 <div class="sync-mode-selector">
@@ -179,9 +192,12 @@
                 </div>
 
                 <div class="sync-files" id="syncFiles">
-                    <h3>同步文件</h3>
-                    <div class="file-list" id="fileList">
-                        <div class="empty-state">暂无文件</div>
+                    <div class="file-list-header">
+                        <h3>文件列表</h3>
+                        <div class="file-summary" id="fileSummary"></div>
+                    </div>
+                    <div class="file-tree-container" id="fileTreeContainer">
+                        <div class="empty-state">加载中...</div>
                     </div>
                 </div>
             </section>
@@ -385,6 +401,59 @@
                 </div>
                 <button type="submit" class="btn btn-primary btn-block">添加规则</button>
             </form>
+        </div>
+    </div>
+
+    <!-- 右键菜单 -->
+    <div id="contextMenu" class="context-menu" style="display: none;">
+        <div class="context-menu-item" id="ctxAddToIgnore">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                <line x1="1" y1="12" x2="23" y2="12"></line>
+            </svg>
+            添加到忽略列表
+        </div>
+        <div class="context-menu-separator"></div>
+        <div class="context-menu-item" id="ctxDeleteFromServer">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+            从服务器删除
+        </div>
+    </div>
+
+    <!-- 忽略列表对话框 -->
+    <div id="ignoreDialog" class="dialog">
+        <div class="dialog-content dialog-content-large">
+            <div class="dialog-header">
+                <h2>编辑忽略列表</h2>
+                <button class="dialog-close" id="closeIgnoreDialog">&times;</button>
+            </div>
+            <div class="dialog-body">
+                <div class="ignore-patterns-form">
+                    <div class="form-group">
+                        <label>添加新忽略模式</label>
+                        <div class="input-group">
+                            <input type="text" id="newIgnorePattern" class="input" placeholder="例如: *.tmp 或 cache/**">
+                            <button id="addIgnorePatternBtn" class="btn btn-primary">添加</button>
+                        </div>
+                        <small class="help-text">支持通配符: * 匹配单级, ** 匹配多级目录</small>
+                    </div>
+                </div>
+                <div class="ignore-patterns-list-container">
+                    <div class="ignore-patterns-header">
+                        <span>当前忽略模式</span>
+                        <span id="ignoreCount">0 个模式</span>
+                    </div>
+                    <div class="ignore-patterns-list" id="ignorePatternsList">
+                        <div class="empty-state">暂无忽略模式</div>
+                    </div>
+                </div>
+                <div class="dialog-actions">
+                    <button id="closeIgnoreDialogBtn" class="btn btn-secondary">关闭</button>
+                </div>
+            </div>
         </div>
     </div>
 
