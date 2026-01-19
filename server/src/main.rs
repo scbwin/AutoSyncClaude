@@ -65,7 +65,7 @@ async fn main() -> Result<()> {
 
     if let Err(e) = grpc_server.serve().await {
         error!("gRPC server error: {}", e);
-        return Err(e.into());
+        return Err(e);
     }
 
     info!("✓ gRPC server started successfully");

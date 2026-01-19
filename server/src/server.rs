@@ -79,7 +79,6 @@ impl GrpcServer {
         let notification_service = NotificationGrpcService::new(self.pool, self.cache);
 
         // 启动 gRPC 服务器
-        let addr = SocketAddr::from(addr);
 
         let svc = Server::builder()
             .add_service(AuthServiceServer::new(auth_service))
