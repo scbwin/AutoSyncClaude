@@ -822,6 +822,7 @@ fn build_file_tree(
 fn should_ignore(path: &str, patterns: &[String]) -> bool {
     for pattern in patterns {
         if matches_pattern(path, pattern) {
+            debug!("路径 '{}' 匹配忽略模式 '{}'", path, pattern);
             return true;
         }
     }
@@ -831,7 +832,13 @@ fn should_ignore(path: &str, patterns: &[String]) -> bool {
 /// 简单的通配符匹配
 fn matches_pattern(path: &str, pattern: &str) -> bool {
     let pattern = pattern.trim();
-    debug!("检查路径 '{}' 是否匹配模式 '{}'", path, pattern);
+    let result = inner_matches_pattern(path, pattern);
+    debug!("检查路径 '{}' 是否匹配模式 '{}': {}", path, pattern, result);
+    result
+}
+
+/// 内部匹配函数（不含日志）
+fn inner_matches_pattern(path: &str, pattern: &str) -> bool {
 
     // 处理 ** 通配符（匹配任意多级目录）
     if pattern.contains("**") {
