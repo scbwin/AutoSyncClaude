@@ -274,11 +274,13 @@ async function loadConfig() {
 async function checkAuthStatus() {
     try {
         const status = await window.__TAURI__.invoke('get_status');
-        state.isLoggedIn = status.logged_in;
-        state.user = {
+        // 只有当 user_id 非空时才认为是已登录
+        const hasUserId = status.user_id && status.user_id.trim() !== '';
+        state.isLoggedIn = status.logged_in && hasUserId;
+        state.user = hasUserId ? {
             id: status.user_id,
             deviceId: status.device_id,
-        };
+        } : null;
         updateAuthUI();
     } catch (error) {
         console.error('Failed to check auth status:', error);
@@ -451,7 +453,7 @@ function updateUI() {
 function updateAuthUI() {
     const userInfo = document.getElementById('userInfo');
     if (state.isLoggedIn) {
-        const displayName = state.username || state.user?.id || '用户';
+        const displayName = state.username || (state.user?.id && state.user.id.trim()) || '用户';
         userInfo.querySelector('.user-avatar').textContent = displayName[0].toUpperCase();
         userInfo.querySelector('.user-name').textContent = displayName;
         userInfo.querySelector('.user-email').textContent = '点击退出登录';

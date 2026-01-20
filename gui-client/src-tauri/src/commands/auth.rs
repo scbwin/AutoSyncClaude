@@ -212,10 +212,17 @@ pub async fn get_status(
     let device_id = state.device_id.clone().unwrap_or_default();
     drop(state);
 
+    // 只有当 user_id 非空时才认为是已登录
+    let actually_logged_in = is_logged_in && !user_id.is_empty();
+
+    // 将空字符串转换为 null，方便前端处理
+    let user_id_value = if user_id.is_empty() { serde_json::Value::Null } else { json!(user_id) };
+    let device_id_value = if device_id.is_empty() { serde_json::Value::Null } else { json!(device_id) };
+
     let status = json!({
-        "logged_in": is_logged_in || !user_id.is_empty(),
-        "user_id": user_id,
-        "device_id": device_id
+        "logged_in": actually_logged_in,
+        "user_id": user_id_value,
+        "device_id": device_id_value
     });
 
     Ok(status)
