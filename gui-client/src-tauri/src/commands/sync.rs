@@ -846,7 +846,10 @@ fn matches_pattern(path: &str, pattern: &str) -> bool {
                 if prefix.is_empty() {
                     return false;
                 }
-                return path.starts_with(prefix) || path == prefix;
+                // 精确匹配或前缀匹配（确保是完整路径段）
+                // 例如：debug/** 应该匹配 "debug" 和 "debug/xxx"
+                // 但不应该匹配 "desktop"
+                return path == prefix || path.starts_with(&format!("{}/", prefix));
             }
 
             // 检查是否匹配前缀和后缀
