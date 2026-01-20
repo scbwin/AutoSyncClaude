@@ -13,8 +13,10 @@ use tokio::sync::Mutex;
 
 #[tokio::main]
 async fn main() {
-    // 初始化日志
-    tracing_subscriber::fmt::init();
+    // 初始化日志（设置日志级别为 DEBUG 以便调试）
+    tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::DEBUG)
+        .init();
 
     tauri::Builder::default()
         .setup(|app| {
