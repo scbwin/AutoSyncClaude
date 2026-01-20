@@ -94,8 +94,7 @@
         "title": "Claude Sync",
         "width": 1000,
         "minWidth": 800,
-        "minHeight": 600,
-        "devtools": true
+        "minHeight": 600
       }
     ]
   }
