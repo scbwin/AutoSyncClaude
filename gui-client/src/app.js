@@ -21,7 +21,207 @@ const state = {
     selectedForSync: new Set(),
     contextMenuTarget: null,
     customIgnorePatterns: [],
+    // 日志系统
+    logs: [],
+    maxLogs: 1000,
+    logLevelFilter: 'all',
+    autoScrollLogs: true,
 };
+
+// ========== 日志系统 ==========
+
+const LogLevel = {
+    DEBUG: 'DEBUG',
+    INFO: 'INFO',
+    WARN: 'WARN',
+    ERROR: 'ERROR'
+};
+
+// 初始化日志系统
+function initLogSystem() {
+    // 拦截 console.log
+    const originalLog = console.log;
+    const originalWarn = console.warn;
+    const originalError = console.error;
+    const originalDebug = console.debug;
+
+    console.log = function(...args) {
+        originalLog.apply(console, args);
+        addLog(LogLevel.INFO, formatLogMessage(args));
+    };
+
+    console.warn = function(...args) {
+        originalWarn.apply(console, args);
+        addLog(LogLevel.WARN, formatLogMessage(args));
+    };
+
+    console.error = function(...args) {
+        originalError.apply(console, args);
+        addLog(LogLevel.ERROR, formatLogMessage(args));
+    };
+
+    console.debug = function(...args) {
+        originalDebug.apply(console, args);
+        addLog(LogLevel.DEBUG, formatLogMessage(args));
+    };
+
+    // 捕获未处理的错误
+    window.addEventListener('error', (event) => {
+        addLog(LogLevel.ERROR, `未捕获的错误: ${event.message} (${event.filename}:${event.lineno})`);
+    });
+
+    window.addEventListener('unhandledrejection', (event) => {
+        addLog(LogLevel.ERROR, `未处理的 Promise 拒绝: ${event.reason}`);
+    });
+
+    addLog(LogLevel.INFO, '日志系统已初始化');
+}
+
+// 格式化日志消息
+function formatLogMessage(args) {
+    return args.map(arg => {
+        if (typeof arg === 'string') return arg;
+        if (arg instanceof Error) return arg.stack || arg.message;
+        try {
+            return JSON.stringify(arg, null, 2);
+        } catch {
+            return String(arg);
+        }
+    }).join(' ');
+}
+
+// 添加日志
+function addLog(level, message) {
+    const timestamp = new Date();
+    const log = {
+        timestamp,
+        level,
+        message,
+        id: Date.now() + Math.random()
+    };
+
+    state.logs.push(log);
+
+    // 限制日志数量
+    if (state.logs.length > state.maxLogs) {
+        state.logs.shift();
+    }
+
+    // 更新 UI（如果日志视图可见）
+    const logsContent = document.getElementById('logsContent');
+    if (logsContent) {
+        appendLogToUI(log);
+    }
+
+    return log;
+}
+
+// 添加日志到 UI
+function appendLogToUI(log) {
+    const logsContent = document.getElementById('logsContent');
+    if (!logsContent) return;
+
+    // 应用级别过滤
+    if (state.logLevelFilter !== 'all' && log.level !== state.logLevelFilter) {
+        return;
+    }
+
+    const entry = document.createElement('div');
+    entry.className = `log-entry log-${log.level.toLowerCase()}`;
+    entry.dataset.logId = log.id;
+
+    const time = document.createElement('span');
+    time.className = 'log-time';
+    time.textContent = formatTime(log.timestamp);
+
+    const level = document.createElement('span');
+    level.className = `log-level ${log.level}`;
+
+    const message = document.createElement('span');
+    message.className = 'log-message';
+    message.textContent = log.message;
+
+    entry.appendChild(time);
+    entry.appendChild(level);
+    entry.appendChild(message);
+
+    logsContent.appendChild(entry);
+
+    // 自动滚动到底部
+    if (state.autoScrollLogs) {
+        logsContent.scrollTop = logsContent.scrollHeight;
+    }
+}
+
+// 格式化时间
+function formatTime(date) {
+    return date.toLocaleTimeString('zh-CN', { hour12: false });
+}
+
+// 清空日志
+function clearLogs() {
+    state.logs = [];
+    const logsContent = document.getElementById('logsContent');
+    if (logsContent) {
+        logsContent.innerHTML = '<div class="log-entry log-info"><span class="log-time">--:--:--</span><span class="log-level">INFO</span><span class="log-message">日志已清空</span></div>';
+    }
+    addLog(LogLevel.INFO, '日志已清空');
+}
+
+// 导出日志
+function exportLogs() {
+    const content = state.logs.map(log => {
+        return `[${log.timestamp.toISOString()}] [${log.level}] ${log.message}`;
+    }).join('\n');
+
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `claude-sync-logs-${Date.now()}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    addLog(LogLevel.INFO, '日志已导出');
+}
+
+// 刷新日志显示（应用过滤）
+function refreshLogsDisplay() {
+    const logsContent = document.getElementById('logsContent');
+    if (!logsContent) return;
+
+    logsContent.innerHTML = '';
+
+    for (const log of state.logs) {
+        if (state.logLevelFilter === 'all' || log.level === state.logLevelFilter) {
+            appendLogToUI(log);
+        }
+    }
+
+    if (state.logs.length === 0) {
+        logsContent.innerHTML = '<div class="log-entry log-info"><span class="log-time">--:--:--</span><span class="log-level">INFO</span><span class="log-message">暂无日志</span></div>';
+    }
+}
+
+// 设置日志面板的事件监听
+function setupLogsPanelListeners() {
+    // 清空按钮
+    document.getElementById('clearLogsBtn')?.addEventListener('click', clearLogs);
+
+    // 导出按钮
+    document.getElementById('exportLogsBtn')?.addEventListener('click', exportLogs);
+
+    // 自动滚动复选框
+    document.getElementById('autoScrollLogs')?.addEventListener('change', (e) => {
+        state.autoScrollLogs = e.target.checked;
+    });
+
+    // 日志级别过滤
+    document.getElementById('logLevelFilter')?.addEventListener('change', (e) => {
+        state.logLevelFilter = e.target.value;
+        refreshLogsDisplay();
+    });
+}
 
 // 切换登录/注册模式
 function switchAuthMode(mode) {
@@ -36,6 +236,10 @@ function switchAuthMode(mode) {
 
 // Initialize app
 async function init() {
+    // 首先初始化日志系统（这样后面的 console.log 都会被捕获）
+    initLogSystem();
+    setupLogsPanelListeners();
+
     await loadConfig();
     await loadSyncStateFromDisk();
     await checkAuthStatus();
