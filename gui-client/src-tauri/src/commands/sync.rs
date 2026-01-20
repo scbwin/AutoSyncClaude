@@ -1148,7 +1148,7 @@ pub async fn get_debug_info(
     // 读取配置管理器的配置文件路径（用于调试）
     let config_path = {
         let mgr = config_manager.lock().await;
-        mgr.config_file.to_string_lossy().to_string()
+        mgr.config_file_path()
     };
 
     // 读取配置文件内容
@@ -1165,7 +1165,7 @@ pub async fn get_debug_info(
         "ignore_file_content": ignore_file_content,
         "config_rules": config_rules,
         "sync_config": sync_config,
-        "config_file_path": config_path,
+        "config_file_path": config_path.to_string_lossy().to_string(),
         "config_file_content": config_file_content,
     }))}
 

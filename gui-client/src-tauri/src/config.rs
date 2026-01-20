@@ -29,6 +29,10 @@ impl ConfigManager {
         }
     }
 
+    pub fn config_file_path(&self) -> PathBuf {
+        self.config_file.clone()
+    }
+
     fn config_dir() -> PathBuf {
         // Windows: C:\Users\Username\AppData\Roaming\claude-sync-gui
         // Linux/Mac: ~/.config/claude-sync-gui
