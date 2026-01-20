@@ -1098,6 +1098,9 @@ pub async fn get_debug_info(
         .unwrap_or(&vec![])
         .clone();
 
+    // 读取完整的 sync 配置段用于调试
+    let sync_config = config.get("sync").cloned().unwrap_or(serde_json::json!({}));
+
     drop(manager);
 
     // 获取 Claude 目录路径
@@ -1142,6 +1145,15 @@ pub async fn get_debug_info(
         "(文件不存在)".to_string()
     };
 
+    // 读取配置管理器的配置文件路径（用于调试）
+    let config_path = {
+        let mgr = config_manager.lock().await;
+        mgr.config_file.to_string_lossy().to_string()
+    };
+
+    // 读取配置文件内容
+    let config_file_content = std::fs::read_to_string(&config_path).unwrap_or("(无法读取)".to_string());
+
     Ok(serde_json::json!({
         "user_id": user_id,
         "claude_dir": claude_dir.to_string_lossy().to_string(),
@@ -1152,5 +1164,8 @@ pub async fn get_debug_info(
         "ignore_file_path": ignore_file.to_string_lossy().to_string(),
         "ignore_file_content": ignore_file_content,
         "config_rules": config_rules,
+        "sync_config": sync_config,
+        "config_file_path": config_path,
+        "config_file_content": config_file_content,
     }))}
 

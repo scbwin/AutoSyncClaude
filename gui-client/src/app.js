@@ -666,6 +666,8 @@ async function loadFileTree() {
             console.log('[DEBUG] 忽略模式列表 (.sync-ignore.json):', debugInfo.ignore_patterns);
             console.log('[DEBUG] 配置文件忽略规则:', debugInfo.config_ignore_patterns);
             console.log('[DEBUG] 所有忽略模式 (合并后):', debugInfo.all_ignore_patterns);
+            console.log('[DEBUG] sync 配置段:', JSON.stringify(debugInfo.sync_config, null, 2));
+            console.log('[DEBUG] 配置文件路径:', debugInfo.config_file_path);
         } catch (e) {
             console.warn('[DEBUG] 无法获取调试信息:', e);
         }
