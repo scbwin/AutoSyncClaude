@@ -634,10 +634,11 @@ pub async fn get_file_tree(
     // 加载自定义忽略模式（.sync-ignore-{user_id}.json）
     let mut custom_patterns = load_custom_ignore_patterns(&claude_dir, &user_id)?;
 
-    // 从配置文件的规则中提取类型为 "ignore" 的规则
+    // 从配置文件的规则中提取类型为 "ignore" 或 "exclude" 的规则
+    // exclude 类型的规则用于文件树过滤
     for rule in config_rules {
         if let Some(rule_type) = rule.get("type").and_then(|t| t.as_str()) {
-            if rule_type == "ignore" {
+            if rule_type == "ignore" || rule_type == "exclude" {
                 if let Some(enabled) = rule.get("enabled").and_then(|e| e.as_bool()) {
                     if enabled {
                         if let Some(pattern) = rule.get("pattern").and_then(|p| p.as_str()) {
@@ -1120,10 +1121,13 @@ pub async fn get_debug_info(
     // 加载忽略模式（.sync-ignore-{user_id}.json）
     let ignore_patterns = load_custom_ignore_patterns(&claude_dir, &user_id).unwrap_or_default();
 
-    // 提取配置文件中的忽略规则
+    // 提取配置文件中的忽略规则（包括 "ignore" 和 "exclude" 类型）
     let config_ignore_patterns: Vec<String> = config_rules
         .iter()
-        .filter(|r| r.get("type").and_then(|t| t.as_str()) == Some("ignore"))
+        .filter(|r| {
+            let rule_type = r.get("type").and_then(|t| t.as_str());
+            rule_type == Some("ignore") || rule_type == Some("exclude")
+        })
         .filter(|r| r.get("enabled").and_then(|e| e.as_bool()).unwrap_or(false))
         .filter_map(|r| r.get("pattern").and_then(|p| p.as_str()).map(|s| s.to_string()))
         .collect();
