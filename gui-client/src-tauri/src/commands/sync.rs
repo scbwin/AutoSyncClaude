@@ -1055,3 +1055,50 @@ pub async fn delete_file_from_server(
     // 暂时返回成功，实际需要实现 gRPC 调用
     Ok(())
 }
+
+/// 获取调试信息（用于前端显示忽略模式等调试数据）
+#[tauri::command]
+pub async fn get_debug_info(
+    config_manager: State<'_, Arc<Mutex<ConfigManager>>>,
+    sync_state: State<'_, Arc<Mutex<SyncState>>>,
+) -> Result<Value, String> {
+    // 获取配置
+    let manager = config_manager.lock().await;
+    let config = manager.get_config().await.map_err(|e| e.to_string())?;
+    drop(manager);
+
+    // 获取 Claude 目录路径
+    let claude_dir = config["sync"]["claude_dir"]
+        .as_str()
+        .unwrap_or("")
+        .to_string();
+
+    let claude_dir = PathBuf::from(claude_dir);
+
+    // 获取用户 ID
+    let user_id = {
+        let state = sync_state.lock().await;
+        state.get_user_id().map(|s| s.to_string()).unwrap_or_else(|| "guest".to_string())
+    };
+
+    // 加载忽略模式
+    let ignore_patterns = load_custom_ignore_patterns(&claude_dir, &user_id).unwrap_or_default();
+
+    // 检查忽略配置文件是否存在
+    let ignore_file = claude_dir.join(format!(".sync-ignore-{}.json", user_id));
+    let ignore_file_exists = ignore_file.exists();
+    let ignore_file_content = if ignore_file_exists {
+        std::fs::read_to_string(&ignore_file).unwrap_or_default()
+    } else {
+        "(文件不存在)".to_string()
+    };
+
+    Ok(serde_json::json!({
+        "user_id": user_id,
+        "claude_dir": claude_dir.to_string_lossy().to_string(),
+        "ignore_patterns": ignore_patterns,
+        "ignore_file_exists": ignore_file_exists,
+        "ignore_file_path": ignore_file.to_string_lossy().to_string(),
+        "ignore_file_content": ignore_file_content,
+    }))}
+

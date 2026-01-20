@@ -57,6 +57,7 @@ async fn main() {
             commands::sync::add_ignore_pattern,
             commands::sync::remove_ignore_pattern,
             commands::sync::delete_file_from_server,
+            commands::sync::get_debug_info,
             commands::rules::list_rules,
             commands::rules::add_rule,
             commands::rules::remove_rule,

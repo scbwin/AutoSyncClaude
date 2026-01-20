@@ -659,6 +659,18 @@ async function loadFileTree() {
 
     try {
         console.log('[DEBUG] 开始加载文件树...');
+
+        // 获取调试信息（包括忽略模式）
+        try {
+            const debugInfo = await window.__TAURI__.invoke('get_debug_info');
+            console.log('[DEBUG] 调试信息:', JSON.stringify(debugInfo, null, 2));
+            console.log('[DEBUG] 忽略模式列表:', debugInfo.ignore_patterns);
+            console.log('[DEBUG] 忽略文件存在:', debugInfo.ignore_file_exists);
+            console.log('[DEBUG] 忽略文件内容:', debugInfo.ignore_file_content);
+        } catch (e) {
+            console.warn('[DEBUG] 无法获取调试信息:', e);
+        }
+
         const tree = await window.__TAURI__.invoke('get_file_tree');
         console.log('[DEBUG] 文件树加载完成，根目录子节点数:', tree.children?.length || 0);
         state.fileTree = tree;
