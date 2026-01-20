@@ -518,6 +518,20 @@ pub async fn load_sync_state_from_disk(
 ) -> Result<(), String> {
     let manager = config_manager.lock().await;
     let config = manager.get_config().await.map_err(|e| e.to_string())?;
+
+    // 从配置文件中读取用户信息（如果存在）
+    let user_id_from_config = config["auth"]
+        .get("user_id")
+        .and_then(|v| v.as_str())
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string());
+
+    let device_id_from_config = config["auth"]
+        .get("device_id")
+        .and_then(|v| v.as_str())
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string());
+
     drop(manager);
 
     // 获取 Claude 目录路径
@@ -527,6 +541,13 @@ pub async fn load_sync_state_from_disk(
         .to_string();
 
     let claude_dir = PathBuf::from(claude_dir);
+
+    // 如果配置文件中有用户信息，设置到 sync_state 中
+    if let (Some(uid), Some(did)) = (user_id_from_config, device_id_from_config) {
+        let mut state = sync_state.lock().await;
+        state.set_user(uid.clone(), did.clone());
+        tracing::info!("从配置文件加载用户信息: user_id={}, device_id={}", uid, did);
+    }
 
     // 从状态获取用户 ID
     let user_id = {
@@ -1067,19 +1088,43 @@ pub async fn remove_ignore_pattern(
 #[tauri::command]
 pub async fn delete_file_from_server(
     file_path: String,
+    config_manager: State<'_, Arc<Mutex<ConfigManager>>>,
     sync_state: State<'_, Arc<Mutex<SyncState>>>,
 ) -> Result<(), String> {
     // TODO: 实现 gRPC 调用从服务器删除文件
     info!("请求从服务器删除文件: {}", file_path);
 
-    // 清除本地缓存中的该文件记录
+    // 获取配置
+    let manager = config_manager.lock().await;
+    let config = manager.get_config().await.map_err(|e| e.to_string())?;
+    drop(manager);
+
+    // 获取 Claude 目录路径
+    let claude_dir = config["sync"]["claude_dir"]
+        .as_str()
+        .unwrap_or("")
+        .to_string();
+    let claude_dir = PathBuf::from(claude_dir);
+
+    // 获取用户 ID
     let user_id = {
         let state = sync_state.lock().await;
         state.get_user_id().map(|s| s.to_string()).unwrap_or_else(|| "guest".to_string())
     };
 
-    // 这里需要访问配置来获取 claude_dir
-    // 暂时返回成功，实际需要实现 gRPC 调用
+    // 加载文件缓存
+    let mut cached_states = load_file_cache(&claude_dir, &user_id).unwrap_or_default();
+
+    // 从缓存中删除该文件
+    if cached_states.remove(&file_path).is_some() {
+        info!("已从缓存中删除文件: {}", file_path);
+
+        // 保存更新后的缓存
+        // 重新扫描当前文件列表以保持缓存完整
+        let current_files = scan_files_with_hash(&claude_dir).await?;
+        save_file_cache(&claude_dir, &user_id, &current_files)?;
+    }
+
     Ok(())
 }
 
