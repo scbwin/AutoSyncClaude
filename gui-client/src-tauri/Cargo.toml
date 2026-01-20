@@ -43,4 +43,4 @@ base64 = "0.21"
 
 [features]
 default = ["custom-protocol"]
-custom-protocol = ["tauri/custom-protocol"]
+custom-protocol = ["tauri/custom-protocol", "tauri/system-tray"]
