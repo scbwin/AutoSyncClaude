@@ -86,6 +86,11 @@
     "updater": {
       "active": false
     },
+    "systemTray": {
+      "iconPath": "icons/icon.png",
+      "iconAsTemplate": true,
+      "tooltip": "Claude Sync"
+    },
     "windows": [
       {
         "fullscreen": false,

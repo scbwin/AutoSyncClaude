@@ -7,7 +7,7 @@ mod grpc;
 mod proto;
 mod state;
 
-use tauri::Manager;
+use tauri::{CustomMenuItem, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu, SystemTrayMenuItem};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -18,7 +18,55 @@ async fn main() {
         .with_max_level(tracing::Level::DEBUG)
         .init();
 
+    // 创建系统托盘菜单
+    let show = CustomMenuItem::new("show", "显示窗口");
+    let hide = CustomMenuItem::new("hide", "隐藏到托盘");
+    let quit = CustomMenuItem::new("quit", "退出");
+
+    let tray_menu = SystemTrayMenu::new()
+        .add_item(show)
+        .add_item(hide)
+        .add_native_item(SystemTrayMenuItem::Separator)
+        .add_item(quit);
+
     tauri::Builder::default()
+        .system_tray(SystemTray::new().with_menu(tray_menu))
+        .on_system_tray_event(|app, event| match event {
+            SystemTrayEvent::LeftClick {
+                position: _,
+                size: _,
+                ..
+            } => {
+                // 左键点击托盘图标：显示窗口
+                let window = app.get_window("main").unwrap();
+                window.show().unwrap();
+                window.set_focus().unwrap();
+            }
+            SystemTrayEvent::MenuItemClick { id, .. } => match id.as_str() {
+                "show" => {
+                    let window = app.get_window("main").unwrap();
+                    window.show().unwrap();
+                    window.set_focus().unwrap();
+                }
+                "hide" => {
+                    let window = app.get_window("main").unwrap();
+                    window.hide().unwrap();
+                }
+                "quit" => {
+                    app.exit(0);
+                }
+                _ => {}
+            },
+            _ => {}
+        })
+        .on_window_event(|event| match event.event() {
+            tauri::WindowEvent::CloseRequested { api, .. } => {
+                // 窗口关闭请求：隐藏到托盘而不是真正关闭
+                event.window().hide().unwrap();
+                api.prevent_close();
+            }
+            _ => {}
+        })
         .setup(|app| {
             // 初始化应用状态
             let handle = app.handle();
