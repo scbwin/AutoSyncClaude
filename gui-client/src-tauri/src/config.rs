@@ -135,10 +135,14 @@ impl ConfigManager {
             if access_token.is_empty() {
                 return Ok(None);
             }
+            let user_id = auth["user_id"].as_str().unwrap_or("").to_string();
+            if user_id.is_empty() {
+                return Ok(None);
+            }
             Ok(Some(AuthTokens {
                 access_token,
                 refresh_token: auth["refresh_token"].as_str().unwrap_or("").to_string(),
-                user_id: auth["user_id"].as_str().unwrap_or("").to_string(),
+                user_id,
                 device_id: auth["device_id"].as_str().unwrap_or("").to_string(),
                 expires_at: auth["expires_at"].as_i64().unwrap_or(0),
             }))
