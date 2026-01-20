@@ -454,7 +454,9 @@ async function loadFileTree() {
     container.innerHTML = '<div class="empty-state">加载中...</div>';
 
     try {
+        console.log('[DEBUG] 开始加载文件树...');
         const tree = await window.__TAURI__.invoke('get_file_tree');
+        console.log('[DEBUG] 文件树加载完成，根目录子节点数:', tree.children?.length || 0);
         state.fileTree = tree;
         renderFileTree();
         updateFileSummary();
@@ -739,7 +741,9 @@ async function handleAddToIgnore() {
     }
 
     try {
+        console.log('[DEBUG] 添加忽略模式:', pattern);
         await window.__TAURI__.invoke('add_ignore_pattern', { pattern });
+        console.log('[DEBUG] 忽略模式已添加，重新加载文件树...');
         showNotification(`已添加到忽略列表: ${pattern}`, 'success');
         hideContextMenu();
         await loadFileTree(); // 重新加载文件树
@@ -788,6 +792,7 @@ function closeIgnoreDialog() {
 async function loadIgnorePatterns() {
     try {
         const patterns = await window.__TAURI__.invoke('get_ignore_patterns');
+        console.log('[DEBUG] 加载的忽略模式:', patterns);
         state.customIgnorePatterns = patterns;
         renderIgnorePatterns();
     } catch (error) {

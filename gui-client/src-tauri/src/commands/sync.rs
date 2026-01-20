@@ -625,6 +625,7 @@ pub async fn get_file_tree(
 
     // 加载自定义忽略模式
     let custom_patterns = load_custom_ignore_patterns(&claude_dir, &user_id)?;
+    debug!("加载的忽略模式: {:?}", custom_patterns);
 
     // 构建文件树
     build_file_tree(&claude_dir, &claude_dir, &cached_states, &custom_patterns)
@@ -685,6 +686,7 @@ fn build_file_tree(
             };
 
             if should_ignore(&rel_path_str, ignore_patterns) {
+                debug!("忽略路径: {}", rel_path_str);
                 continue;
             }
 
@@ -829,6 +831,7 @@ fn should_ignore(path: &str, patterns: &[String]) -> bool {
 /// 简单的通配符匹配
 fn matches_pattern(path: &str, pattern: &str) -> bool {
     let pattern = pattern.trim();
+    debug!("检查路径 '{}' 是否匹配模式 '{}'", path, pattern);
 
     // 处理 ** 通配符（匹配任意多级目录）
     if pattern.contains("**") {
@@ -839,7 +842,11 @@ fn matches_pattern(path: &str, pattern: &str) -> bool {
 
             if suffix.is_empty() {
                 // 模式如 "cache/**" - 匹配以 prefix 开头的所有路径
-                return path.starts_with(prefix) || path == prefix.trim_end_matches('/');
+                // 如果 prefix 为空（模式如 "/**"），则不匹配
+                if prefix.is_empty() {
+                    return false;
+                }
+                return path.starts_with(prefix) || path == prefix;
             }
 
             // 检查是否匹配前缀和后缀
@@ -879,8 +886,10 @@ fn matches_pattern(path: &str, pattern: &str) -> bool {
 /// 加载自定义忽略模式
 fn load_custom_ignore_patterns(claude_dir: &Path, user_id: &str) -> Result<Vec<String>, String> {
     let ignore_file = claude_dir.join(format!(".sync-ignore-{}.json", user_id));
+    debug!("加载忽略模式，文件路径: {:?}, 存在: {}", ignore_file, ignore_file.exists());
 
     if !ignore_file.exists() {
+        debug!("忽略配置文件不存在，返回空列表");
         return Ok(Vec::new());
     }
 
@@ -897,6 +906,7 @@ fn load_custom_ignore_patterns(claude_dir: &Path, user_id: &str) -> Result<Vec<S
         .filter_map(|p| p.as_str().map(|s| s.to_string()))
         .collect();
 
+    debug!("成功加载 {} 个忽略模式: {:?}", patterns.len(), patterns);
     Ok(patterns)
 }
 
@@ -971,11 +981,18 @@ pub async fn add_ignore_pattern(
         state.get_user_id().map(|s| s.to_string()).unwrap_or_else(|| "guest".to_string())
     };
 
+    let ignore_file = claude_dir.join(format!(".sync-ignore-{}.json", user_id));
+    debug!("忽略配置文件路径: {:?}, 文件存在: {}", ignore_file, ignore_file.exists());
+
     let mut patterns = load_custom_ignore_patterns(&claude_dir, &user_id)?;
+    debug!("当前忽略模式: {:?}, 添加新模式: {}", patterns, pattern);
 
     if !patterns.contains(&pattern) {
         patterns.push(pattern);
         save_custom_ignore_patterns(&claude_dir, &user_id, &patterns)?;
+        debug!("保存后的忽略模式: {:?}", patterns);
+    } else {
+        debug!("模式已存在，无需添加");
     }
 
     Ok(())

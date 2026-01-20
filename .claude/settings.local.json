@@ -31,7 +31,11 @@
       "Bash(where:*)",
       "Bash(git rebase:*)",
       "Bash(git stash drop:*)",
-      "Bash(npm run tauri build:*)"
+      "Bash(npm run tauri build:*)",
+      "Bash(pnpm tauri build:*)",
+      "Bash(dir:*)",
+      "Bash(powershell:*)",
+      "Bash(npm run tauri:*)"
     ]
   }
 }
