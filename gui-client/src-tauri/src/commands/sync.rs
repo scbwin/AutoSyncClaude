@@ -587,6 +587,14 @@ pub async fn get_file_tree(
     // 获取配置
     let manager = config_manager.lock().await;
     let config = manager.get_config().await.map_err(|e| e.to_string())?;
+
+    // 从配置文件中读取类型为 "ignore" 的规则
+    let config_rules = config["sync"]["rules"]
+        .as_array()
+        .unwrap_or(&vec![])
+        .clone();
+
+    // 释放配置管理器锁
     drop(manager);
 
     // 获取 Claude 目录路径
@@ -623,8 +631,26 @@ pub async fn get_file_tree(
     // 加载本地文件状态缓存
     let cached_states = load_file_cache(&claude_dir, &user_id).unwrap_or_default();
 
-    // 加载自定义忽略模式
-    let custom_patterns = load_custom_ignore_patterns(&claude_dir, &user_id)?;
+    // 加载自定义忽略模式（.sync-ignore-{user_id}.json）
+    let mut custom_patterns = load_custom_ignore_patterns(&claude_dir, &user_id)?;
+
+    // 从配置文件的规则中提取类型为 "ignore" 的规则
+    for rule in config_rules {
+        if let Some(rule_type) = rule.get("type").and_then(|t| t.as_str()) {
+            if rule_type == "ignore" {
+                if let Some(enabled) = rule.get("enabled").and_then(|e| e.as_bool()) {
+                    if enabled {
+                        if let Some(pattern) = rule.get("pattern").and_then(|p| p.as_str()) {
+                            if !custom_patterns.contains(&pattern.to_string()) {
+                                custom_patterns.push(pattern.to_string());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     debug!("加载的忽略模式: {:?}", custom_patterns);
 
     // 构建文件树
@@ -1065,6 +1091,13 @@ pub async fn get_debug_info(
     // 获取配置
     let manager = config_manager.lock().await;
     let config = manager.get_config().await.map_err(|e| e.to_string())?;
+
+    // 从配置文件中读取类型为 "ignore" 的规则
+    let config_rules = config["sync"]["rules"]
+        .as_array()
+        .unwrap_or(&vec![])
+        .clone();
+
     drop(manager);
 
     // 获取 Claude 目录路径
@@ -1081,8 +1114,24 @@ pub async fn get_debug_info(
         state.get_user_id().map(|s| s.to_string()).unwrap_or_else(|| "guest".to_string())
     };
 
-    // 加载忽略模式
+    // 加载忽略模式（.sync-ignore-{user_id}.json）
     let ignore_patterns = load_custom_ignore_patterns(&claude_dir, &user_id).unwrap_or_default();
+
+    // 提取配置文件中的忽略规则
+    let config_ignore_patterns: Vec<String> = config_rules
+        .iter()
+        .filter(|r| r.get("type").and_then(|t| t.as_str()) == Some("ignore"))
+        .filter(|r| r.get("enabled").and_then(|e| e.as_bool()).unwrap_or(false))
+        .filter_map(|r| r.get("pattern").and_then(|p| p.as_str()).map(|s| s.to_string()))
+        .collect();
+
+    // 合并后的所有忽略模式
+    let mut all_patterns = ignore_patterns.clone();
+    for pattern in &config_ignore_patterns {
+        if !all_patterns.contains(pattern) {
+            all_patterns.push(pattern.clone());
+        }
+    }
 
     // 检查忽略配置文件是否存在
     let ignore_file = claude_dir.join(format!(".sync-ignore-{}.json", user_id));
@@ -1097,8 +1146,11 @@ pub async fn get_debug_info(
         "user_id": user_id,
         "claude_dir": claude_dir.to_string_lossy().to_string(),
         "ignore_patterns": ignore_patterns,
+        "config_ignore_patterns": config_ignore_patterns,
+        "all_ignore_patterns": all_patterns,
         "ignore_file_exists": ignore_file_exists,
         "ignore_file_path": ignore_file.to_string_lossy().to_string(),
         "ignore_file_content": ignore_file_content,
+        "config_rules": config_rules,
     }))}
 
