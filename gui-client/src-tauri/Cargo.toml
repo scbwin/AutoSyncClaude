@@ -8,7 +8,7 @@ repository = ""
 edition = "2021"
 
 [build-dependencies]
-tauri-build = { version = "1.5", features = [] }
+tauri-build = { version = "1.5", features = ["system-tray"] }
 tonic-build = "0.11"
 
 [dependencies]
