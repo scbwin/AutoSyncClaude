@@ -683,11 +683,13 @@ function renderFileTree() {
 }
 
 // 渲染树节点
-function renderTreeNode(node, depth, parentPath) {
-    const fullPath = parentPath ? `${parentPath}/${node.path}` : node.path;
-    const isExpanded = state.expandedFolders.has(fullPath || 'root');
+// 注意：node.path 已经是 Rust 后端返回的完整相对路径，不需要拼接 parentPath
+function renderTreeNode(node, depth, _parentPath) {
+    // node.path 已经是完整的相对路径，直接使用（根节点 path 为空时用 'root' 作为内部标识）
+    const nodePath = node.path || 'root';
+    const isExpanded = state.expandedFolders.has(nodePath);
     const hasChildren = node.children && node.children.length > 0;
-    const isChecked = state.selectedForSync.has(fullPath) || (!state.selectedForSync.has(fullPath) && node.checked);
+    const isChecked = state.selectedForSync.has(nodePath) || (!state.selectedForSync.has(nodePath) && node.checked);
 
     // 节点缩进
     const indentStyle = `padding-left: ${depth * 20 + 8}px;`;
@@ -743,8 +745,8 @@ function renderTreeNode(node, depth, parentPath) {
         const chevronClass = isExpanded ? 'expanded' : '';
         chevronHtml = `
             <svg class="tree-chevron ${chevronClass}" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                 data-path="${escapeHtml(fullPath || 'root')}"
-                 onclick="event.stopPropagation(); toggleFolder('${escapeHtml(fullPath || 'root')}')">
+                 data-path="${escapeHtml(nodePath)}"
+                 onclick="event.stopPropagation(); toggleFolder('${escapeHtml(nodePath)}')">
                 <polyline points="9 18 15 12 9 6"></polyline>
             </svg>
         `;
@@ -753,18 +755,18 @@ function renderTreeNode(node, depth, parentPath) {
     // 构建节点 HTML
     let html = `
         <div class="tree-node"
-             data-path="${escapeHtml(fullPath || 'root')}"
+             data-path="${escapeHtml(nodePath)}"
              data-type="${node.node_type}"
              data-exists-on-server="${node.exists_on_server}"
              style="${indentStyle}"
-             oncontextmenu="showContextMenu(event, '${escapeHtml(fullPath || 'root')}', '${node.node_type}', ${node.exists_on_server})">
+             oncontextmenu="showContextMenu(event, '${escapeHtml(nodePath)}', '${node.node_type}', ${node.exists_on_server})">
             ${chevronHtml}
             <input type="checkbox"
                    class="tree-checkbox"
                    ${isChecked ? 'checked' : ''}
-                   data-path="${escapeHtml(fullPath || 'root')}"
+                   data-path="${escapeHtml(nodePath)}"
                    data-type="${node.node_type}"
-                   onchange="handleCheckboxChange('${escapeHtml(fullPath || 'root')}', this.checked, '${node.node_type}')">
+                   onchange="handleCheckboxChange('${escapeHtml(nodePath)}', this.checked, '${node.node_type}')">
             <div class="tree-icon">${iconSvg}</div>
             <span class="tree-name" title="${escapeHtml(node.path || node.name)}">${escapeHtml(node.name)}</span>
             <span class="tree-status-icon">${statusIcon}</span>
@@ -776,7 +778,8 @@ function renderTreeNode(node, depth, parentPath) {
     if (hasChildren && isExpanded) {
         html += '<div class="tree-children">';
         for (const child of node.children) {
-            html += renderTreeNode(child, depth + 1, fullPath || 'root');
+            // 子节点的 path 已经是完整的相对路径，不需要传递 parentPath
+            html += renderTreeNode(child, depth + 1, null);
         }
         html += '</div>';
     }
