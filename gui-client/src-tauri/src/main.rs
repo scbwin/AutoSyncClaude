@@ -24,8 +24,8 @@ async fn main() {
         eprintln!("Failed to create log directory: {}", e);
     });
 
-    // 文件日志（每天轮转，保留 7 天）
-    let file_appender = tracing_appender::rolling::daily(&log_dir, "claude-sync", "log");
+    // 文件日志（每天轮转）
+    let file_appender = tracing_appender::rolling::daily(&log_dir, "claude-sync");
     let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
 
     // 控制台日志 + 文件日志
