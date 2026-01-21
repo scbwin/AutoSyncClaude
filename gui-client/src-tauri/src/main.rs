@@ -1,6 +1,5 @@
 // Prevents additional console window on Windows in release
-// #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-#![cfg_attr(debug_assertions, windows_subsystem = "console")]
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod commands;
 mod config;
@@ -18,88 +17,50 @@ static LOG_GUARD: OnceLock<tracing_appender::non_blocking::WorkerGuard> = OnceLo
 
 #[tokio::main]
 async fn main() {
-    // 设置 panic hook 以便在崩溃时显示错误
-    std::panic::set_hook(Box::new(|panic_info| {
-        let backtrace = std::backtrace::Backtrace::capture();
-        eprintln!("程序崩溃: {}", panic_info);
-        eprintln!("堆栈信息:\n{}", backtrace);
-    }));
-
-    // 初始化日志 - 同时输出到控制台和文件
+    // 初始化日志
     let log_dir = dirs::data_local_dir()
         .unwrap_or_else(|| std::path::PathBuf::from("."))
         .join("claude-sync")
         .join("logs");
 
-    // 创建日志目录
-    std::fs::create_dir_all(&log_dir).unwrap_or_else(|e| {
-        eprintln!("Failed to create log directory: {}", e);
-    });
+    let _ = std::fs::create_dir_all(&log_dir);
 
-    // 文件日志（每天轮转）
     let file_appender = tracing_appender::rolling::daily(&log_dir, "claude-sync");
     let (non_blocking, guard) = tracing_appender::non_blocking(file_appender);
-
-    // 将 guard 存储到全局静态变量中，确保其在程序整个生命周期内存活
     let _ = LOG_GUARD.set(guard);
 
-    // 使用 Registry 组合多个 layer：控制台日志 + 文件日志
     tracing_subscriber::registry()
         .with(
-            // 控制台日志层
             tracing_subscriber::fmt::layer()
                 .with_target(false)
                 .with_thread_ids(false)
-                .with_file(false)
-                .with_line_number(false)
-                .with_writer(std::io::stdout),
-        )
-        .with(
-            // 文件日志层
-            tracing_subscriber::fmt::layer()
-                .with_target(true)
-                .with_thread_ids(true)
                 .with_writer(non_blocking),
         )
         .init();
 
-    // 记录日志目录位置，方便用户查找
-    println!("Log directory: {}", log_dir.display());
-    tracing::info!("应用开始初始化...");
-
-    tracing::info!("开始构建 Tauri 应用...");
+    tracing::info!("Claude Sync GUI 启动");
 
     tauri::Builder::default()
         .on_window_event(|event| match event.event() {
             tauri::WindowEvent::CloseRequested { api, .. } => {
-                tracing::info!("窗口关闭请求");
-                // 正常关闭窗口，不隐藏到托盘
-            }
-            tauri::WindowEvent::Focused(focused) => {
-                tracing::info!("窗口焦点变化: focused={}", focused);
+                // 正常关闭窗口
             }
             _ => {}
         })
         .setup(|app| {
-            tracing::info!("Setup 函数开始执行...");
-
-            // 初始化应用状态
             let handle = app.handle();
             let config_manager = Arc::new(Mutex::new(config::ConfigManager::new()));
             let sync_state = Arc::new(Mutex::new(state::SyncState::new()));
 
-            // 存储到应用状态
             app.manage(config_manager);
             app.manage(sync_state);
 
-            // 启动后台同步任务（如果配置了自动启动）
+            // 启动后台任务
             let _app_handle = handle.clone();
             tauri::async_runtime::spawn(async move {
-                // TODO: 根据配置决定是否自动启动同步
-                tracing::info!("GUI 应用已启动");
+                tracing::info!("Claude Sync GUI 已启动");
             });
 
-            tracing::info!("Setup 函数执行完成");
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

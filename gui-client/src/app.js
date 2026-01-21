@@ -236,41 +236,20 @@ function switchAuthMode(mode) {
 
 // Initialize app
 async function init() {
-    console.log('[INIT] 开始初始化应用...');
-
     try {
-        // 首先初始化日志系统（这样后面的 console.log 都会被捕获）
         initLogSystem();
         setupLogsPanelListeners();
-        console.log('[INIT] 日志系统初始化完成');
 
-        console.log('[INIT] 加载配置...');
         await loadConfig();
-        console.log('[INIT] 配置加载完成');
-
-        console.log('[INIT] 加载同步状态...');
         await loadSyncStateFromDisk();
-        console.log('[INIT] 同步状态加载完成');
-
-        console.log('[INIT] 检查认证状态...');
         await checkAuthStatus();
-        console.log('[INIT] 认证状态检查完成');
-
-        console.log('[INIT] 设置事件监听器...');
         setupEventListeners();
         setupNavigation();
-        console.log('[INIT] 事件监听器设置完成');
-
-        console.log('[INIT] 启动连接检查...');
         startConnectionCheck();
-
-        console.log('[INIT] 更新 UI...');
         updateUI();
-        console.log('[INIT] 应用初始化完成！');
     } catch (error) {
-        console.error('[INIT] 初始化过程中发生错误:', error);
-        console.error('[INIT] 错误堆栈:', error.stack);
-        alert('应用初始化失败: ' + error.message);
+        console.error('初始化错误:', error);
+        showNotification('初始化失败: ' + error.message, 'error');
     }
 }
 
