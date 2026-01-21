@@ -65,8 +65,10 @@ async fn main() {
 
     // 记录日志目录位置，方便用户查找
     println!("Log directory: {}", log_dir.display());
+    tracing::info!("应用开始初始化...");
 
     // 创建系统托盘菜单
+    tracing::info!("创建系统托盘菜单...");
     let show = CustomMenuItem::new("show", "显示窗口");
     let hide = CustomMenuItem::new("hide", "隐藏到托盘");
     let quit = CustomMenuItem::new("quit", "退出");
@@ -76,6 +78,8 @@ async fn main() {
         .add_item(hide)
         .add_native_item(SystemTrayMenuItem::Separator)
         .add_item(quit);
+
+    tracing::info!("系统托盘菜单创建完成，开始构建 Tauri 应用...");
 
     tauri::Builder::default()
         .system_tray(SystemTray::new().with_menu(tray_menu))
@@ -113,12 +117,20 @@ async fn main() {
         .on_window_event(|event| match event.event() {
             tauri::WindowEvent::CloseRequested { api, .. } => {
                 // 窗口关闭请求：隐藏到托盘而不是真正关闭
+                tracing::info!("窗口关闭请求，隐藏到托盘");
                 let _ = event.window().hide();
                 api.prevent_close();
+            }
+            tauri::WindowEvent::Focused(focused) => {
+                tracing::info!("窗口焦点变化: focused={}", focused);
+            }
+            tauri::WindowEvent::Destroyed => {
+                tracing::warn!("窗口被销毁！");
             }
             _ => {}
         })
         .setup(|app| {
+            tracing::info!("Setup 函数开始执行...");
             // 初始化应用状态
             let handle = app.handle();
             let config_manager = Arc::new(Mutex::new(config::ConfigManager::new()));
@@ -135,6 +147,7 @@ async fn main() {
                 tracing::info!("GUI 应用已启动");
             });
 
+            tracing::info!("Setup 函数执行完成");
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -164,4 +177,6 @@ async fn main() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+
+    tracing::info!("Tauri 应用已退出");
 }
