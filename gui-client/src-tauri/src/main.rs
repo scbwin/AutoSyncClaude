@@ -8,7 +8,7 @@ mod grpc;
 mod proto;
 mod state;
 
-use tauri::{CustomMenuItem, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu, SystemTrayMenuItem, WindowEvent};
+use tauri::{CustomMenuItem, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu, SystemTrayMenuItem};
 use std::sync::{Arc, OnceLock};
 use tokio::sync::Mutex;
 use tracing_subscriber::prelude::*;
@@ -139,14 +139,8 @@ async fn main() {
             tauri::WindowEvent::ThemeChanged { .. } => {
                 tracing::info!("窗口主题改变");
             }
-            tauri::WindowEvent::PageLoaded(_) => {
-                tracing::info!("页面加载完成！");
-            }
-            tauri::WindowEvent::Detached => {
-                tracing::warn!("窗口分离！");
-            }
             _ => {
-                tracing::debug!("其他窗口事件: {:?}", event.event());
+                tracing::debug!("其他窗口事件: {:?}", std::mem::discriminant(event.event()));
             }
         })
         .setup(|app| {
