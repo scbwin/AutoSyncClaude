@@ -8,7 +8,7 @@ mod grpc;
 mod proto;
 mod state;
 
-use tauri::{Manager, SystemTray, SystemTrayEvent};
+use tauri::Manager;
 use std::sync::{Arc, OnceLock};
 use tokio::sync::Mutex;
 use tracing_subscriber::prelude::*;
@@ -70,57 +70,18 @@ async fn main() {
     tracing::info!("开始构建 Tauri 应用...");
 
     tauri::Builder::default()
-        .system_tray(SystemTray::new())
-        .on_system_tray_event(|app, event| match event {
-            SystemTrayEvent::LeftClick { .. } => {
-                tracing::info!("托盘左键点击");
-                if let Some(window) = app.get_window("main") {
-                    let _ = window.show();
-                    let _ = window.set_focus();
-                }
-            }
-            _ => {}
-        })
         .on_window_event(|event| match event.event() {
             tauri::WindowEvent::CloseRequested { api, .. } => {
-                // 窗口关闭请求：隐藏到托盘而不是真正关闭
-                tracing::info!("窗口关闭请求，隐藏到托盘");
-                let _ = event.window().hide();
-                api.prevent_close();
+                tracing::info!("窗口关闭请求");
+                // 正常关闭窗口，不隐藏到托盘
             }
             tauri::WindowEvent::Focused(focused) => {
                 tracing::info!("窗口焦点变化: focused={}", focused);
             }
-            tauri::WindowEvent::Destroyed => {
-                tracing::warn!("窗口被销毁！");
-            }
-            tauri::WindowEvent::Resized { .. } => {
-                tracing::info!("窗口大小改变");
-            }
-            tauri::WindowEvent::Moved { .. } => {
-                tracing::info!("窗口位置改变");
-            }
-            _ => {
-                tracing::debug!("其他窗口事件");
-            }
+            _ => {}
         })
         .setup(|app| {
             tracing::info!("Setup 函数开始执行...");
-
-            // 获取主窗口并确保它显示
-            if let Some(window) = app.get_window("main") {
-                tracing::info!("获取到主窗口，当前状态检查...");
-                match window.show() {
-                    Ok(_) => tracing::info!("窗口显示成功"),
-                    Err(e) => tracing::error!("窗口显示失败: {}", e),
-                }
-                match window.set_focus() {
-                    Ok(_) => tracing::info!("窗口焦点设置成功"),
-                    Err(e) => tracing::error!("窗口焦点设置失败: {}", e),
-                }
-            } else {
-                tracing::error!("无法获取主窗口！");
-            }
 
             // 初始化应用状态
             let handle = app.handle();

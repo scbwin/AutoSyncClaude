@@ -3,7 +3,7 @@
   "build": {
     "beforeBuildCommand": "",
     "beforeDevCommand": "",
-    "devPath": "../src/index.html",
+    "devPath": "../src",
     "distDir": "../src",
     "withGlobalTauri": true
   },
