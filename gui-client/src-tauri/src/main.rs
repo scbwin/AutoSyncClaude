@@ -27,7 +27,10 @@ async fn main() {
 
     // 文件日志（每天轮转）
     let file_appender = tracing_appender::rolling::daily(&log_dir, "claude-sync");
-    let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
+    let (non_blocking, guard) = tracing_appender::non_blocking(file_appender);
+
+    // 确保 guard 在程序运行期间保持存活，防止日志提前停止
+    std::mem::forget(guard);
 
     // 使用 Registry 组合多个 layer：控制台日志 + 文件日志
     tracing_subscriber::registry()
