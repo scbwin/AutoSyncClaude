@@ -1,5 +1,6 @@
 // Prevents additional console window on Windows in release
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+// #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+#![cfg_attr(debug_assertions, windows_subsystem = "console")]
 
 mod commands;
 mod config;
@@ -17,6 +18,13 @@ static LOG_GUARD: OnceLock<tracing_appender::non_blocking::WorkerGuard> = OnceLo
 
 #[tokio::main]
 async fn main() {
+    // 设置 panic hook 以便在崩溃时显示错误
+    std::panic::set_hook(Box::new(|panic_info| {
+        let backtrace = std::backtrace::Backtrace::capture();
+        eprintln!("程序崩溃: {}", panic_info);
+        eprintln!("堆栈信息:\n{}", backtrace);
+    }));
+
     // 初始化日志 - 同时输出到控制台和文件
     let log_dir = dirs::data_local_dir()
         .unwrap_or_else(|| std::path::PathBuf::from("."))
