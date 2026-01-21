@@ -8,7 +8,7 @@ mod grpc;
 mod proto;
 mod state;
 
-use tauri::{CustomMenuItem, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu, SystemTrayMenuItem};
+use tauri::{CustomMenuItem, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu, SystemTrayMenuItem, SystemTrayIcon};
 use std::sync::{Arc, OnceLock};
 use tokio::sync::Mutex;
 use tracing_subscriber::prelude::*;
@@ -67,9 +67,14 @@ async fn main() {
     println!("Log directory: {}", log_dir.display());
     tracing::info!("应用开始初始化...");
 
-    // 创建系统托盘（简化版本，不带菜单）
-    tracing::info!("创建系统托盘...");
-    let tray = SystemTray::new();
+    // 创建系统托盘（带图标）
+    tracing::info!("创建系统托盘图标...");
+    let icon = SystemTrayIcon::new(
+        std::path::PathBuf::from("icons/32x32.png"),
+        None::<String>
+    );
+    let tray = SystemTray::new()
+        .with_icon(icon);
     tracing::info!("系统托盘创建完成，开始构建 Tauri 应用...");
 
     tauri::Builder::default()
