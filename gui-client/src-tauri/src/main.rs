@@ -67,23 +67,13 @@ async fn main() {
     println!("Log directory: {}", log_dir.display());
     tracing::info!("应用开始初始化...");
 
-    // 创建系统托盘（现在 icons 目录有图标文件了）
-    tracing::info!("创建系统托盘...");
-    let tray = SystemTray::new();
-    tracing::info!("系统托盘创建完成，开始构建 Tauri 应用...");
+    tracing::info!("开始构建 Tauri 应用...");
 
     tauri::Builder::default()
-        .system_tray(tray)
+        .system_tray(SystemTray::new())
         .on_system_tray_event(|app, event| match event {
             SystemTrayEvent::LeftClick { .. } => {
                 tracing::info!("托盘左键点击");
-                if let Some(window) = app.get_window("main") {
-                    let _ = window.show();
-                    let _ = window.set_focus();
-                }
-            }
-            SystemTrayEvent::DoubleClick { .. } => {
-                tracing::info!("托盘双击");
                 if let Some(window) = app.get_window("main") {
                     let _ = window.show();
                     let _ = window.set_focus();
@@ -110,14 +100,8 @@ async fn main() {
             tauri::WindowEvent::Moved { .. } => {
                 tracing::info!("窗口位置改变");
             }
-            tauri::WindowEvent::ScaleFactorChanged { .. } => {
-                tracing::info!("窗口缩放因子改变");
-            }
-            tauri::WindowEvent::ThemeChanged { .. } => {
-                tracing::info!("窗口主题改变");
-            }
             _ => {
-                tracing::debug!("其他窗口事件: {:?}", std::mem::discriminant(event.event()));
+                tracing::debug!("其他窗口事件");
             }
         })
         .setup(|app| {
