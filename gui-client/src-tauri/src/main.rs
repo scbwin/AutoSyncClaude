@@ -8,7 +8,8 @@ mod grpc;
 mod proto;
 mod state;
 
-use tauri::{CustomMenuItem, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu, SystemTrayMenuItem};
+use tauri::{CustomMenuItem, Manager}; // 临时移除 SystemTray 相关
+// use tauri::{CustomMenuItem, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu, SystemTrayMenuItem};
 use std::sync::{Arc, OnceLock};
 use tokio::sync::Mutex;
 use tracing_subscriber::prelude::*;
@@ -67,6 +68,8 @@ async fn main() {
     println!("Log directory: {}", log_dir.display());
     tracing::info!("应用开始初始化...");
 
+    // 临时注释掉系统托盘相关代码
+    /*
     // 创建系统托盘菜单
     tracing::info!("创建系统托盘菜单...");
     let show = CustomMenuItem::new("show", "显示窗口");
@@ -80,46 +83,44 @@ async fn main() {
         .add_item(quit);
 
     tracing::info!("系统托盘菜单创建完成，开始构建 Tauri 应用...");
+    */
+
+    tracing::info!("开始构建 Tauri 应用（无系统托盘）...");
 
     tauri::Builder::default()
-        .system_tray(SystemTray::new().with_menu(tray_menu))
-        .on_system_tray_event(|app, event| match event {
-            SystemTrayEvent::LeftClick {
-                position: _,
-                size: _,
-                ..
-            } => {
-                // 左键点击托盘图标：显示窗口
-                if let Some(window) = app.get_window("main") {
-                    let _ = window.show();
-                    let _ = window.set_focus();
-                }
-            }
-            SystemTrayEvent::MenuItemClick { id, .. } => match id.as_str() {
-                "show" => {
-                    if let Some(window) = app.get_window("main") {
-                        let _ = window.show();
-                        let _ = window.set_focus();
-                    }
-                }
-                "hide" => {
-                    if let Some(window) = app.get_window("main") {
-                        let _ = window.hide();
-                    }
-                }
-                "quit" => {
-                    app.exit(0);
-                }
-                _ => {}
-            },
-            _ => {}
-        })
+        // .system_tray(SystemTray::new().with_menu(tray_menu))
+        // .on_system_tray_event(|app, event| match event {
+        //     SystemTrayEvent::LeftClick { .. } => {
+        //         if let Some(window) = app.get_window("main") {
+        //             let _ = window.show();
+        //             let _ = window.set_focus();
+        //         }
+        //     }
+        //     SystemTrayEvent::MenuItemClick { id, .. } => match id.as_str() {
+        //         "show" => {
+        //             if let Some(window) = app.get_window("main") {
+        //                 let _ = window.show();
+        //                 let _ = window.set_focus();
+        //             }
+        //         }
+        //         "hide" => {
+        //             if let Some(window) = app.get_window("main") {
+        //                 let _ = window.hide();
+        //             }
+        //         }
+        //         "quit" => {
+        //             app.exit(0);
+        //         }
+        //         _ => {}
+        //     },
+        //     _ => {}
+        // })
         .on_window_event(|event| match event.event() {
             tauri::WindowEvent::CloseRequested { api, .. } => {
-                // 窗口关闭请求：隐藏到托盘而不是真正关闭
-                tracing::info!("窗口关闭请求，隐藏到托盘");
-                let _ = event.window().hide();
-                api.prevent_close();
+                // 临时：正常的关闭行为
+                tracing::info!("窗口关闭请求");
+                // let _ = event.window().hide();
+                // api.prevent_close();
             }
             tauri::WindowEvent::Focused(focused) => {
                 tracing::info!("窗口焦点变化: focused={}", focused);
