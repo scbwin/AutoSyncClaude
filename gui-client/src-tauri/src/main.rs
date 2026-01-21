@@ -30,7 +30,8 @@ async fn main() {
     let (non_blocking, guard) = tracing_appender::non_blocking(file_appender);
 
     // 确保 guard 在程序运行期间保持存活，防止日志提前停止
-    std::mem::forget(guard);
+    // 使用 Box::leak 让 guard 永久存活，直到程序结束
+    Box::leak(Box::new(guard));
 
     // 使用 Registry 组合多个 layer：控制台日志 + 文件日志
     tracing_subscriber::registry()
@@ -75,19 +76,22 @@ async fn main() {
                 ..
             } => {
                 // 左键点击托盘图标：显示窗口
-                let window = app.get_window("main").unwrap();
-                window.show().unwrap();
-                window.set_focus().unwrap();
+                if let Some(window) = app.get_window("main") {
+                    let _ = window.show();
+                    let _ = window.set_focus();
+                }
             }
             SystemTrayEvent::MenuItemClick { id, .. } => match id.as_str() {
                 "show" => {
-                    let window = app.get_window("main").unwrap();
-                    window.show().unwrap();
-                    window.set_focus().unwrap();
+                    if let Some(window) = app.get_window("main") {
+                        let _ = window.show();
+                        let _ = window.set_focus();
+                    }
                 }
                 "hide" => {
-                    let window = app.get_window("main").unwrap();
-                    window.hide().unwrap();
+                    if let Some(window) = app.get_window("main") {
+                        let _ = window.hide();
+                    }
                 }
                 "quit" => {
                     app.exit(0);
@@ -99,7 +103,7 @@ async fn main() {
         .on_window_event(|event| match event.event() {
             tauri::WindowEvent::CloseRequested { api, .. } => {
                 // 窗口关闭请求：隐藏到托盘而不是真正关闭
-                event.window().hide().unwrap();
+                let _ = event.window().hide();
                 api.prevent_close();
             }
             _ => {}
