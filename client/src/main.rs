@@ -141,7 +141,39 @@ enum RuleCommands {
 }
 
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() {
+    // 设置 panic hook 以便在崩溃时显示错误
+    std::panic::set_hook(Box::new(|panic_info| {
+        let backtrace = std::backtrace::Backtrace::capture();
+        eprintln!("程序崩溃: {}", panic_info);
+        eprintln!("堆栈信息:\n{}", backtrace);
+        #[cfg(windows)]
+        {
+            println!("程序遇到错误，按任意键退出...");
+            let _ = std::io::stdin().read_line(&mut String::new());
+        }
+    }));
+
+    let result = run().await;
+
+    if let Err(e) = result {
+        eprintln!("错误: {}", e);
+        let mut cause = e.source();
+        while let Some(e) = cause {
+            eprintln!("  原因: {}", e);
+            cause = e.source();
+        }
+
+        #[cfg(windows)]
+        {
+            println!("\n按任意键退出...");
+            let _ = std::io::stdin().read_line(&mut String::new());
+        }
+        std::process::exit(1);
+    }
+}
+
+async fn run() -> Result<()> {
     let cli = Cli::parse();
 
     // 初始化日志
@@ -151,10 +183,11 @@ async fn main() -> Result<()> {
         Level::INFO
     };
 
-    tracing_subscriber::fmt()
+    // 使用 try_init 避免重复初始化
+    let _ = tracing_subscriber::fmt()
         .with_max_level(log_level)
         .with_target(false)
-        .init();
+        .try_init();
 
     info!("🚀 Claude Sync Client v0.1.0");
 
