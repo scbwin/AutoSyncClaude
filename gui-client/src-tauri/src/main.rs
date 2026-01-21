@@ -127,10 +127,38 @@ async fn main() {
             tauri::WindowEvent::Destroyed => {
                 tracing::warn!("窗口被销毁！");
             }
+            tauri::WindowEvent::Resized { .. } => {
+                tracing::info!("窗口大小改变");
+            }
+            tauri::WindowEvent::Moved { .. } => {
+                tracing::info!("窗口位置改变");
+            }
+            tauri::WindowEvent::ScaleFactorChanged { .. } => {
+                tracing::info!("窗口缩放因子改变");
+            }
+            tauri::WindowEvent::ThemeChanged { .. } => {
+                tracing::info!("窗口主题改变");
+            }
             _ => {}
         })
         .setup(|app| {
             tracing::info!("Setup 函数开始执行...");
+
+            // 获取主窗口并确保它显示
+            if let Some(window) = app.get_window("main") {
+                tracing::info!("获取到主窗口，当前状态检查...");
+                match window.show() {
+                    Ok(_) => tracing::info!("窗口显示成功"),
+                    Err(e) => tracing::error!("窗口显示失败: {}", e),
+                }
+                match window.set_focus() {
+                    Ok(_) => tracing::info!("窗口焦点设置成功"),
+                    Err(e) => tracing::error!("窗口焦点设置失败: {}", e),
+                }
+            } else {
+                tracing::error!("无法获取主窗口！");
+            }
+
             // 初始化应用状态
             let handle = app.handle();
             let config_manager = Arc::new(Mutex::new(config::ConfigManager::new()));
