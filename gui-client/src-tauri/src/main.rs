@@ -10,6 +10,7 @@ mod state;
 use tauri::{CustomMenuItem, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu, SystemTrayMenuItem};
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use tracing_subscriber::prelude::*;
 
 #[tokio::main]
 async fn main() {
