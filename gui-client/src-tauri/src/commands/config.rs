@@ -13,7 +13,10 @@ pub async fn init_config(
         .init_config()
         .await
         .map_err(|e| e.to_string())
-        .map(|config| serde_json::to_value(config).unwrap())
+        .and_then(|config| {
+            serde_json::to_value(config)
+                .map_err(|e| format!("序列化配置失败: {}", e))
+        })
 }
 
 #[tauri::command]
@@ -25,7 +28,10 @@ pub async fn get_config(
         .get_config()
         .await
         .map_err(|e| e.to_string())
-        .map(|config| serde_json::to_value(config).unwrap())
+        .and_then(|config| {
+            serde_json::to_value(config)
+                .map_err(|e| format!("序列化配置失败: {}", e))
+        })
 }
 
 #[tauri::command]

@@ -58,7 +58,8 @@ impl AuthClient {
         self.ensure_connected().await?;
 
         let request = RegisterRequest { username, email, password };
-        let client = self.client.as_mut().unwrap();
+        let client = self.client.as_mut()
+            .ok_or_else(|| "客户端未正确初始化".to_string())?;
 
         let response = client
             .register(request)
@@ -93,7 +94,8 @@ impl AuthClient {
             device_fingerprint,
         };
 
-        let client = self.client.as_mut().unwrap();
+        let client = self.client.as_mut()
+            .ok_or_else(|| "客户端未正确初始化".to_string())?;
 
         let response = client
             .login(request)
@@ -118,7 +120,8 @@ impl AuthClient {
         self.ensure_connected().await?;
 
         let request = crate::proto::claude_sync::RefreshTokenRequest { refresh_token };
-        let client = self.client.as_mut().unwrap();
+        let client = self.client.as_mut()
+            .ok_or_else(|| "客户端未正确初始化".to_string())?;
 
         let response = client
             .refresh_token(request)
@@ -143,7 +146,8 @@ impl AuthClient {
         self.ensure_connected().await?;
 
         let request = crate::proto::claude_sync::LogoutRequest { refresh_token };
-        let client = self.client.as_mut().unwrap();
+        let client = self.client.as_mut()
+            .ok_or_else(|| "客户端未正确初始化".to_string())?;
 
         client
             .logout(request)

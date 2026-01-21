@@ -11,6 +11,33 @@ use tauri::State;
 use tracing::{debug, error, info, warn};
 use chrono::{DateTime, Utc};
 
+/// 默认排除的目录
+const EXCLUDE_DIRS: &[&str] = &[
+    "cache",
+    "downloads",
+    "image-cache",
+    "file-history",
+    "shell-snapshots",
+    "statsig",
+    "blob",
+    "zdocs",
+];
+
+/// 默认排除的文件扩展名
+const EXCLUDE_EXTS: &[&str] = &[
+    "tmp", "log", "swp", "DS_Store", "pdb", "exe", "dll", "so", "dylib",
+    "rlib", "rmeta", "o", "a", "lib",
+];
+
+/// 只包含的文件扩展名
+const ALLOWED_EXTS: &[&str] = &[
+    "json", "md", "txt", "toml", "yaml", "yml", "rs", "js", "ts", "py",
+    "sh", "bat", "zsh", "fish", "env", "proto",
+];
+
+/// 支持的同步模式
+const VALID_SYNC_MODES: &[&str] = &["auto", "manual", "bidirectional", "full", "incremental"];
+
 /// 文件同步状态（已弃用，保留用于兼容）
 #[derive(Debug, Clone, serde::Serialize)]
 struct FileSyncInfo {
@@ -64,6 +91,11 @@ pub async fn start_sync(
     sync_state: State<'_, Arc<Mutex<SyncState>>>,
     config_manager: State<'_, Arc<Mutex<ConfigManager>>>,
 ) -> Result<String, String> {
+    // 验证同步模式
+    if !VALID_SYNC_MODES.contains(&mode.as_str()) {
+        return Err(format!("无效的同步模式: {}。支持的模式: {}", mode, VALID_SYNC_MODES.join(", ")));
+    }
+
     let mut state = sync_state.lock().await;
 
     if state.is_syncing {
@@ -252,36 +284,13 @@ pub async fn get_pending_files(
         })
         .collect();
 
-    Ok(serde_json::to_value(pending_files).unwrap())
+    serde_json::to_value(pending_files)
+        .map_err(|e| format!("序列化文件列表失败: {}", e))
 }
 
 /// 扫描文件并计算哈希
 async fn scan_files_with_hash(claude_dir: &Path) -> Result<Vec<(String, String, u64)>, String> {
     let mut files = Vec::new();
-
-    // 默认排除的目录
-    let exclude_dirs = vec![
-        "cache",
-        "downloads",
-        "image-cache",
-        "file-history",
-        "shell-snapshots",
-        "statsig",
-        "blob",
-        "zdocs",
-    ];
-
-    // 默认排除的文件扩展名
-    let exclude_exts = vec![
-        "tmp", "log", "swp", "DS_Store", "pdb", "exe", "dll", "so", "dylib",
-        "rlib", "rmeta", "o", "a", "lib",
-    ];
-
-    // 只包含的文件扩展名
-    let allowed_exts = vec![
-        "json", "md", "txt", "toml", "yaml", "yml", "rs", "js", "ts", "py",
-        "sh", "bat", "zsh", "fish", "env", "proto",
-    ];
 
     // 递归遍历目录
     let mut stack = vec![claude_dir.to_path_buf()];
@@ -308,7 +317,7 @@ async fn scan_files_with_hash(claude_dir: &Path) -> Result<Vec<(String, String, 
             if path.is_dir() {
                 // 检查是否在排除目录中
                 let dir_name = file_name.to_string_lossy();
-                if exclude_dirs.contains(&dir_name.as_ref()) {
+                if EXCLUDE_DIRS.contains(&dir_name.as_ref()) {
                     debug!("跳过排除目录: {:?}", path);
                     continue;
                 }
@@ -319,13 +328,13 @@ async fn scan_files_with_hash(claude_dir: &Path) -> Result<Vec<(String, String, 
                     let ext_str = ext.to_string_lossy().to_lowercase();
 
                     // 跳过排除的扩展名
-                    if exclude_exts.contains(&ext_str.as_str()) {
+                    if EXCLUDE_EXTS.contains(&ext_str.as_str()) {
                         debug!("跳过排除的文件: {:?}", path);
                         continue;
                     }
 
                     // 只包含允许的扩展名
-                    if !allowed_exts.contains(&ext_str.as_str()) {
+                    if !ALLOWED_EXTS.contains(&ext_str.as_str()) {
                         debug!("跳过不支持类型的文件: {:?}", path);
                         continue;
                     }
@@ -741,11 +750,7 @@ fn build_file_tree(
             if path.is_dir() {
                 // 检查是否在默认排除目录中
                 let dir_name_str = file_name.to_string_lossy();
-                let exclude_dirs = vec![
-                    "cache", "downloads", "image-cache", "file-history",
-                    "shell-snapshots", "statsig", "blob", "zdocs",
-                ];
-                if exclude_dirs.contains(&dir_name_str.as_ref()) {
+                if EXCLUDE_DIRS.contains(&dir_name_str.as_ref()) {
                     continue;
                 }
                 dirs.push((path, file_name.to_string_lossy().to_string()));
@@ -754,21 +759,11 @@ fn build_file_tree(
                 if let Some(ext) = path.extension() {
                     let ext_str = ext.to_string_lossy().to_lowercase();
 
-                    let exclude_exts = vec![
-                        "tmp", "log", "swp", "DS_Store", "pdb", "exe", "dll", "so", "dylib",
-                        "rlib", "rmeta", "o", "a", "lib",
-                    ];
-
-                    if exclude_exts.contains(&ext_str.as_str()) {
+                    if EXCLUDE_EXTS.contains(&ext_str.as_str()) {
                         continue;
                     }
 
-                    let allowed_exts = vec![
-                        "json", "md", "txt", "toml", "yaml", "yml", "rs", "js", "ts", "py",
-                        "sh", "bat", "zsh", "fish", "env", "proto",
-                    ];
-
-                    if !allowed_exts.contains(&ext_str.as_str()) {
+                    if !ALLOWED_EXTS.contains(&ext_str.as_str()) {
                         continue;
                     }
 

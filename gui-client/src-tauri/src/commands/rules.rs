@@ -10,7 +10,8 @@ pub async fn list_rules(
 ) -> Result<Value, String> {
     let manager = config_manager.lock().await;
     let rules = manager.get_rules().await.map_err(|e| e.to_string())?;
-    Ok(serde_json::to_value(rules).unwrap())
+    serde_json::to_value(rules)
+        .map_err(|e| format!("序列化规则失败: {}", e))
 }
 
 #[tauri::command]

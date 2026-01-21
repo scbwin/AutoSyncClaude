@@ -8,9 +8,12 @@ mod proto;
 mod state;
 
 use tauri::{CustomMenuItem, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu, SystemTrayMenuItem};
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use tokio::sync::Mutex;
 use tracing_subscriber::prelude::*;
+
+// 全局日志 Guard，确保其在程序整个生命周期内存活
+static LOG_GUARD: OnceLock<tracing_appender::non_blocking::WorkerGuard> = OnceLock::new();
 
 #[tokio::main]
 async fn main() {
@@ -29,9 +32,8 @@ async fn main() {
     let file_appender = tracing_appender::rolling::daily(&log_dir, "claude-sync");
     let (non_blocking, guard) = tracing_appender::non_blocking(file_appender);
 
-    // 确保 guard 在程序运行期间保持存活，防止日志提前停止
-    // 使用 Box::leak 让 guard 永久存活，直到程序结束
-    Box::leak(Box::new(guard));
+    // 将 guard 存储到全局静态变量中，确保其在程序整个生命周期内存活
+    let _ = LOG_GUARD.set(guard);
 
     // 使用 Registry 组合多个 layer：控制台日志 + 文件日志
     tracing_subscriber::registry()
