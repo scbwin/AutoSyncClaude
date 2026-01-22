@@ -1,3 +1,12 @@
+// ========== Tauri API 兼容层 ==========
+// Tauri 2.x 使用 window.__TAURI__.core.invoke
+const invoke = window.__TAURI__?.core?.invoke
+    ? window.__TAURI__.core.invoke.bind(window.__TAURI__.core)
+    : function(cmd, args) {
+        console.error('Tauri API 不可用');
+        return Promise.reject(new Error('Tauri API 不可用'));
+    };
+
 // App state
 const state = {
     currentView: 'dashboard',
@@ -256,7 +265,7 @@ async function init() {
 // Load sync state from disk
 async function loadSyncStateFromDisk() {
     try {
-        await window.__TAURI__.invoke('load_sync_state_from_disk');
+        await invoke('load_sync_state_from_disk');
         console.log('Sync state loaded from disk');
     } catch (error) {
         console.error('Failed to load sync state:', error);
@@ -266,7 +275,7 @@ async function loadSyncStateFromDisk() {
 // Load configuration
 async function loadConfig() {
     try {
-        const config = await window.__TAURI__.invoke('get_config');
+        const config = await invoke('get_config');
         state.config = config;
         console.log('Config loaded:', config);
     } catch (error) {
@@ -277,7 +286,7 @@ async function loadConfig() {
 // Check authentication status
 async function checkAuthStatus() {
     try {
-        const status = await window.__TAURI__.invoke('get_status');
+        const status = await invoke('get_status');
         // 只有当 user_id 非空时才认为是已登录
         const hasUserId = status.user_id && status.user_id.trim() !== '';
         state.isLoggedIn = status.logged_in && hasUserId;
@@ -475,7 +484,7 @@ async function handleLogin() {
     const deviceName = document.getElementById('deviceName').value;
 
     try {
-        const result = await window.__TAURI__.invoke('login', {
+        const result = await invoke('login', {
             email,
             password,
             deviceName: deviceName || null,
@@ -521,7 +530,7 @@ async function handleRegister() {
     }
 
     try {
-        const result = await window.__TAURI__.invoke('register', {
+        const result = await invoke('register', {
             username,
             email,
             password,
@@ -543,7 +552,7 @@ async function handleRegister() {
 // Handle logout
 async function handleLogout() {
     try {
-        await window.__TAURI__.invoke('logout');
+        await invoke('logout');
         state.isLoggedIn = false;
         state.user = null;
         state.username = null;
@@ -560,7 +569,7 @@ async function handleStartSync() {
     const mode = document.getElementById('syncMode').value;
 
     try {
-        const result = await window.__TAURI__.invoke('start_sync', { mode });
+        const result = await invoke('start_sync', { mode });
         console.log('Start sync result:', result);
 
         document.getElementById('startSyncBtn').disabled = true;
@@ -580,7 +589,7 @@ async function handleStartSync() {
 // Handle stop sync
 async function handleStopSync() {
     try {
-        await window.__TAURI__.invoke('stop_sync');
+        await invoke('stop_sync');
         console.log('Sync stopped');
 
         document.getElementById('startSyncBtn').disabled = false;
@@ -598,7 +607,7 @@ async function handleStopSync() {
 async function pollSyncStatus() {
     const interval = setInterval(async () => {
         try {
-            const status = await window.__TAURI__.invoke('get_sync_status');
+            const status = await invoke('get_sync_status');
             state.syncStatus = status;
 
             // Update progress
@@ -629,7 +638,7 @@ async function pollSyncStatus() {
 // Load sync status
 async function loadSyncStatus() {
     try {
-        const status = await window.__TAURI__.invoke('get_sync_status');
+        const status = await invoke('get_sync_status');
         state.syncStatus = status;
 
         document.getElementById('startSyncBtn').disabled = status.is_syncing;
@@ -649,7 +658,7 @@ async function loadSyncStatus() {
 // Load pending files (已弃用，保留用于兼容)
 async function loadPendingFiles() {
     try {
-        const files = await window.__TAURI__.invoke('get_pending_files');
+        const files = await invoke('get_pending_files');
         state.pendingFiles = files;
     } catch (error) {
         console.error('Failed to load pending files:', error);
@@ -668,7 +677,7 @@ async function loadFileTree() {
 
         // 获取调试信息（包括忽略模式）
         try {
-            const debugInfo = await window.__TAURI__.invoke('get_debug_info');
+            const debugInfo = await invoke('get_debug_info');
             console.log('[DEBUG] 忽略模式列表 (.sync-ignore.json):', debugInfo.ignore_patterns);
             console.log('[DEBUG] 配置文件忽略规则:', debugInfo.config_ignore_patterns);
             console.log('[DEBUG] 所有忽略模式 (合并后):', debugInfo.all_ignore_patterns);
@@ -678,7 +687,7 @@ async function loadFileTree() {
             console.warn('[DEBUG] 无法获取调试信息:', e);
         }
 
-        const tree = await window.__TAURI__.invoke('get_file_tree');
+        const tree = await invoke('get_file_tree');
         console.log('[DEBUG] 文件树加载完成，根目录子节点数:', tree.children?.length || 0);
         state.fileTree = tree;
         renderFileTree();
@@ -968,7 +977,7 @@ async function handleAddToIgnore() {
 
     try {
         console.log('[DEBUG] 添加忽略模式:', pattern);
-        await window.__TAURI__.invoke('add_ignore_pattern', { pattern });
+        await invoke('add_ignore_pattern', { pattern });
         console.log('[DEBUG] 忽略模式已添加，重新加载文件树...');
         showNotification(`已添加到忽略列表: ${pattern}`, 'success');
         hideContextMenu();
@@ -990,7 +999,7 @@ async function handleDeleteFromServer() {
     }
 
     try {
-        await window.__TAURI__.invoke('delete_file_from_server', { filePath: path });
+        await invoke('delete_file_from_server', { filePath: path });
         showNotification(`已从服务器删除: ${path}`, 'success');
         hideContextMenu();
         await loadFileTree(); // 重新加载文件树
@@ -1017,7 +1026,7 @@ function closeIgnoreDialog() {
 // 加载忽略模式列表
 async function loadIgnorePatterns() {
     try {
-        const patterns = await window.__TAURI__.invoke('get_ignore_patterns');
+        const patterns = await invoke('get_ignore_patterns');
         console.log('[DEBUG] 加载的忽略模式:', patterns);
         state.customIgnorePatterns = patterns;
         renderIgnorePatterns();
@@ -1062,7 +1071,7 @@ async function handleAddIgnorePattern() {
     }
 
     try {
-        await window.__TAURI__.invoke('add_ignore_pattern', { pattern });
+        await invoke('add_ignore_pattern', { pattern });
         input.value = '';
         await loadIgnorePatterns();
         showNotification('忽略模式添加成功', 'success');
@@ -1078,7 +1087,7 @@ async function handleRemoveIgnorePattern(index) {
     if (!pattern) return;
 
     try {
-        await window.__TAURI__.invoke('remove_ignore_pattern', { pattern });
+        await invoke('remove_ignore_pattern', { pattern });
         await loadIgnorePatterns();
         showNotification('忽略模式已删除', 'success');
     } catch (error) {
@@ -1099,7 +1108,7 @@ function formatSize(bytes) {
 // Load dashboard data
 async function loadDashboardData() {
     try {
-        const status = await window.__TAURI__.invoke('get_sync_status');
+        const status = await invoke('get_sync_status');
         document.getElementById('syncedCount').textContent = status.synced_files;
         document.getElementById('failedCount').textContent = status.failed_files;
 
@@ -1109,7 +1118,7 @@ async function loadDashboardData() {
         }
 
         // Load rules count
-        const rules = await window.__TAURI__.invoke('list_rules');
+        const rules = await invoke('list_rules');
         state.rules = rules;
         document.getElementById('rulesCount').textContent = rules.length;
     } catch (error) {
@@ -1120,7 +1129,7 @@ async function loadDashboardData() {
 // Load rules
 async function loadRules() {
     try {
-        const rules = await window.__TAURI__.invoke('list_rules');
+        const rules = await invoke('list_rules');
         state.rules = rules;
         renderRules();
     } catch (error) {
@@ -1169,7 +1178,7 @@ async function handleAddRule() {
     const priority = parseInt(document.getElementById('rulePriority').value);
 
     try {
-        await window.__TAURI__.invoke('add_rule', {
+        await invoke('add_rule', {
             name,
             ruleType,
             pattern,
@@ -1193,7 +1202,7 @@ async function handleRemoveRule(ruleId) {
     if (!confirm('确定要删除此规则吗？')) return;
 
     try {
-        await window.__TAURI__.invoke('remove_rule', { ruleId });
+        await invoke('remove_rule', { ruleId });
         await loadRules();
         showNotification('规则删除成功', 'success');
     } catch (error) {
@@ -1205,7 +1214,7 @@ async function handleRemoveRule(ruleId) {
 // Load devices
 async function loadDevices() {
     try {
-        const result = await window.__TAURI__.invoke('list_devices');
+        const result = await invoke('list_devices');
         state.devices = result.devices || [];
         renderDevices();
     } catch (error) {
@@ -1291,7 +1300,7 @@ async function handleSaveSettings() {
     };
 
     try {
-        await window.__TAURI__.invoke('update_config', { config: newConfig });
+        await invoke('update_config', { config: newConfig });
         state.config = newConfig;
         showNotification('设置保存成功', 'success');
 
@@ -1308,7 +1317,7 @@ async function handleResetSettings() {
     if (!confirm('确定要重置为默认设置吗？')) return;
 
     try {
-        const config = await window.__TAURI__.invoke('init_config');
+        const config = await invoke('init_config');
         state.config = config;
         loadSettings();
         showNotification('设置已重置', 'success');
@@ -1326,7 +1335,7 @@ async function checkConnection() {
     updateConnectionStatusUI();
 
     try {
-        const result = await window.__TAURI__.invoke('check_connection');
+        const result = await invoke('check_connection');
         state.connectionStatus.connected = result.connected;
         state.connectionStatus.message = result.message;
         console.log('Connection check result:', result);
