@@ -752,6 +752,7 @@ function renderTreeNode(node, depth, _parentPath) {
         case 'synced':
             statusIcon = `
                 <svg class="tree-status synced" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <title>已同步到服务器</title>
                     <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
                     <polyline points="22 4 12 14.01 9 11.01"></polyline>
                 </svg>
@@ -760,6 +761,7 @@ function renderTreeNode(node, depth, _parentPath) {
         case 'pending':
             statusIcon = `
                 <svg class="tree-status pending" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <title>待同步（已选中）</title>
                     <circle cx="12" cy="12" r="10"></circle>
                     <circle cx="12" cy="12" r="3"></circle>
                 </svg>
@@ -768,6 +770,7 @@ function renderTreeNode(node, depth, _parentPath) {
         case 'not_on_server':
             statusIcon = `
                 <svg class="tree-status not-on-server" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <title>未同步（未选中）</title>
                     <circle cx="12" cy="12" r="10"></circle>
                 </svg>
             `;
