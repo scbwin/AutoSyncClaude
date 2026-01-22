@@ -577,12 +577,18 @@ async function checkAndStartAutoSync() {
         }
 
         console.log('自动启动同步已启用，开始同步...');
-        const mode = state.config.sync.mode || 'auto';
+        // 使用 UI 中的同步模式或默认值
+        const syncModeSelect = document.getElementById('syncMode');
+        const mode = syncModeSelect?.value || 'auto';
         await invoke('start_sync', { mode });
 
-        document.getElementById('startSyncBtn').disabled = true;
-        document.getElementById('stopSyncBtn').disabled = false;
-        document.getElementById('syncProgress').style.display = 'block';
+        const startBtn = document.getElementById('startSyncBtn');
+        const stopBtn = document.getElementById('stopSyncBtn');
+        const progress = document.getElementById('syncProgress');
+
+        if (startBtn) startBtn.disabled = true;
+        if (stopBtn) stopBtn.disabled = false;
+        if (progress) progress.style.display = 'block';
 
         pollSyncStatus();
         showNotification('已自动启动同步', 'success');
@@ -1364,7 +1370,13 @@ function loadSettings() {
     document.getElementById('claudeDir').value = sync.claude_dir || '';
     document.getElementById('syncInterval').value = sync.interval || 60;
     document.getElementById('autoStart').checked = sync.auto_start || false;
-    document.getElementById('autostartEnabled').checked = state.autostartEnabled || false;
+
+    // 安全地设置 autostartEnabled checkbox
+    const autostartCheckbox = document.getElementById('autostartEnabled');
+    if (autostartCheckbox) {
+        autostartCheckbox.checked = state.autostartEnabled || false;
+    }
+
     document.getElementById('theme').value = ui.theme || 'system';
     document.getElementById('language').value = ui.language || 'zh-CN';
     document.getElementById('minimizeToTray').checked = ui.minimize_to_tray !== false;
@@ -1409,11 +1421,18 @@ async function handleSaveSettings() {
             const syncStatus = await invoke('get_sync_status');
             if (!syncStatus.is_syncing) {
                 console.log('自动启动同步已启用，立即开始同步...');
-                const mode = state.config.sync.mode || 'auto';
+                // 使用 UI 中的同步模式或默认值
+                const syncModeSelect = document.getElementById('syncMode');
+                const mode = syncModeSelect?.value || 'auto';
                 await invoke('start_sync', { mode });
-                document.getElementById('startSyncBtn').disabled = true;
-                document.getElementById('stopSyncBtn').disabled = false;
-                document.getElementById('syncProgress').style.display = 'block';
+
+                const startBtn = document.getElementById('startSyncBtn');
+                const stopBtn = document.getElementById('stopSyncBtn');
+                const progress = document.getElementById('syncProgress');
+                if (startBtn) startBtn.disabled = true;
+                if (stopBtn) stopBtn.disabled = false;
+                if (progress) progress.style.display = 'block';
+
                 pollSyncStatus();
                 showNotification('已自动启动同步', 'success');
             }
