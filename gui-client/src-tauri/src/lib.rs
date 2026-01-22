@@ -68,6 +68,9 @@ pub fn run() {
                 .build()?;
 
             let _tray = TrayIconBuilder::new()
+                .icon(tauri::image::Image::from_path(
+                    std::path::PathBuf::from("icons/32x32.png"),
+                ))
                 .menu(&menu)
                 .on_menu_event(move |app, event| {
                     match event.id().as_ref() {
