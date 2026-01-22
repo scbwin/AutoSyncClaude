@@ -54,9 +54,7 @@ pub fn run() {
     let _ = MINIMIZE_TO_TRAY.set(minimize_to_tray);
 
     tauri::Builder::default()
-        .plugin(tauri_plugin_autostart::init(
-            tauri_plugin_autostart::MacosLauncher::App,
-        ))
+        .plugin(tauri_plugin_autostart::Builder::new().build())
         .on_window_event(|_window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 if *MINIMIZE_TO_TRAY.get().unwrap_or(&true) {
