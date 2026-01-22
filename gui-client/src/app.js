@@ -566,6 +566,13 @@ async function handleLogout() {
 
 // Handle start sync
 async function handleStartSync() {
+    // 检查登录状态
+    if (!state.isLoggedIn) {
+        showNotification('请先登录后再开始同步', 'error');
+        document.getElementById('loginDialog').classList.add('active');
+        return;
+    }
+
     const mode = document.getElementById('syncMode').value;
 
     try {
