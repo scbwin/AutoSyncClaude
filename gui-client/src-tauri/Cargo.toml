@@ -49,5 +49,8 @@ prost = "0.12"
 tokio-stream = "0.1"
 base64 = "0.21"
 
+# 自动启动插件
+tauri-plugin-autostart = "2"
+
 [features]
 default = []

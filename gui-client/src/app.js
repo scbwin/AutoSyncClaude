@@ -35,6 +35,7 @@ const state = {
     maxLogs: 1000,
     logLevelFilter: 'all',
     autoScrollLogs: true,
+    autostartEnabled: false,
 };
 
 // ========== 日志系统 ==========
@@ -252,6 +253,7 @@ async function init() {
         await loadConfig();
         await loadSyncStateFromDisk();
         await checkAuthStatus();
+        await initAutostart();
         setupEventListeners();
         setupNavigation();
         startConnectionCheck();
@@ -259,6 +261,17 @@ async function init() {
     } catch (error) {
         console.error('初始化错误:', error);
         showNotification('初始化失败: ' + error.message, 'error');
+    }
+}
+
+// Initialize autostart setting
+async function initAutostart() {
+    try {
+        const enabled = await invoke('is_autostart_enabled');
+        state.autostartEnabled = enabled;
+        console.log('Autostart enabled:', enabled);
+    } catch (error) {
+        console.error('Failed to check autostart status:', error);
     }
 }
 
@@ -295,6 +308,14 @@ async function checkAuthStatus() {
             deviceId: status.device_id,
         } : null;
         updateAuthUI();
+
+        // 如果已登录，检查是否需要自动启动同步
+        if (state.isLoggedIn) {
+            // 延迟一点执行，确保应用完全初始化
+            setTimeout(() => {
+                checkAndStartAutoSync();
+            }, 1000);
+        }
     } catch (error) {
         console.error('Failed to check auth status:', error);
     }
@@ -407,6 +428,26 @@ function setupEventListeners() {
     document.getElementById('resetSettingsBtn').addEventListener('click', async () => {
         await handleResetSettings();
     });
+
+    // Autostart checkbox
+    document.getElementById('autostartEnabled').addEventListener('change', async (e) => {
+        const enabled = e.target.checked;
+        try {
+            if (enabled) {
+                await invoke('enable_autostart');
+                showNotification('开机自动启动已启用', 'success');
+            } else {
+                await invoke('disable_autostart');
+                showNotification('开机自动启动已禁用', 'success');
+            }
+            state.autostartEnabled = enabled;
+        } catch (error) {
+            console.error('Failed to toggle autostart:', error);
+            showNotification('设置开机自动启动失败: ' + error, 'error');
+            // Revert checkbox state on error
+            e.target.checked = !enabled;
+        }
+    });
 }
 
 // Setup navigation
@@ -502,9 +543,51 @@ async function handleLogin() {
 
         // Show success notification
         showNotification('登录成功', 'success');
+
+        // 登录成功后检查是否自动启动同步
+        await checkAndStartAutoSync();
     } catch (error) {
         console.error('Login failed:', error);
         showNotification('登录失败: ' + error, 'error');
+    }
+}
+
+// 检查并自动启动同步
+async function checkAndStartAutoSync() {
+    try {
+        // 重新加载配置以获取最新的 auto_start 设置
+        await loadConfig();
+
+        if (!state.config?.sync?.auto_start) {
+            console.log('自动启动同步未启用');
+            return;
+        }
+
+        // 检查是否已经在同步
+        const syncStatus = await invoke('get_sync_status');
+        if (syncStatus.is_syncing) {
+            console.log('同步已在进行中，跳过自动启动');
+            return;
+        }
+
+        // 检查登录状态
+        if (!state.isLoggedIn) {
+            console.log('未登录，跳过自动启动同步');
+            return;
+        }
+
+        console.log('自动启动同步已启用，开始同步...');
+        const mode = state.config.sync.mode || 'auto';
+        await invoke('start_sync', { mode });
+
+        document.getElementById('startSyncBtn').disabled = true;
+        document.getElementById('stopSyncBtn').disabled = false;
+        document.getElementById('syncProgress').style.display = 'block';
+
+        pollSyncStatus();
+        showNotification('已自动启动同步', 'success');
+    } catch (error) {
+        console.error('检查自动启动配置失败:', error);
     }
 }
 
@@ -1281,6 +1364,7 @@ function loadSettings() {
     document.getElementById('claudeDir').value = sync.claude_dir || '';
     document.getElementById('syncInterval').value = sync.interval || 60;
     document.getElementById('autoStart').checked = sync.auto_start || false;
+    document.getElementById('autostartEnabled').checked = state.autostartEnabled || false;
     document.getElementById('theme').value = ui.theme || 'system';
     document.getElementById('language').value = ui.language || 'zh-CN';
     document.getElementById('minimizeToTray').checked = ui.minimize_to_tray !== false;
@@ -1289,6 +1373,9 @@ function loadSettings() {
 
 // Handle save settings
 async function handleSaveSettings() {
+    const oldAutoStart = state.config?.sync?.auto_start || false;
+    const newAutoStart = document.getElementById('autoStart').checked;
+
     const newConfig = {
         server: {
             address: document.getElementById('serverAddress').value,
@@ -1298,7 +1385,7 @@ async function handleSaveSettings() {
         sync: {
             claude_dir: document.getElementById('claudeDir').value,
             interval: parseInt(document.getElementById('syncInterval').value),
-            auto_start: document.getElementById('autoStart').checked,
+            auto_start: newAutoStart,
             exclude_patterns: state.config?.sync?.exclude_patterns || [],
         },
         ui: {
@@ -1316,6 +1403,21 @@ async function handleSaveSettings() {
 
         // 保存设置后重新检查连接状态
         await checkConnection();
+
+        // 如果启用了自动启动同步且已登录，立即启动同步
+        if (newAutoStart && !oldAutoStart && state.isLoggedIn) {
+            const syncStatus = await invoke('get_sync_status');
+            if (!syncStatus.is_syncing) {
+                console.log('自动启动同步已启用，立即开始同步...');
+                const mode = state.config.sync.mode || 'auto';
+                await invoke('start_sync', { mode });
+                document.getElementById('startSyncBtn').disabled = true;
+                document.getElementById('stopSyncBtn').disabled = false;
+                document.getElementById('syncProgress').style.display = 'block';
+                pollSyncStatus();
+                showNotification('已自动启动同步', 'success');
+            }
+        }
     } catch (error) {
         console.error('Failed to save settings:', error);
         showNotification('保存设置失败: ' + error, 'error');

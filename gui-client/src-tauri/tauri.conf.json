@@ -41,5 +41,10 @@
       "icons/icon.ico",
       "icons/icon.png"
     ]
+  },
+  "plugins": {
+    "autostart": {
+      "enabled": false
+    }
   }
 }
