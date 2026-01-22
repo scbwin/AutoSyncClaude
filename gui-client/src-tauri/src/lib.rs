@@ -70,10 +70,11 @@ pub fn run() {
             // 加载托盘图标
             let icon_bytes = include_bytes!("../icons/32x32.png");
             let icon_image = image::load_from_memory(icon_bytes)?.to_rgba8();
+            let (width, height) = (icon_image.width(), icon_image.height());
             let icon = tauri::image::Image::new_owned(
                 icon_image.into_raw(),
-                icon_image.width(),
-                icon_image.height(),
+                width,
+                height,
             );
 
             let _tray = TrayIconBuilder::new()
