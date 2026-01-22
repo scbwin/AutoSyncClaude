@@ -1110,12 +1110,11 @@ pub async fn delete_file_from_server(
     // 加载文件缓存
     let mut cached_states = load_file_cache(&claude_dir, &user_id).unwrap_or_default();
 
-    // 规范化文件路径（确保以 / 开头且无尾部斜杠）
-    let normalized_path = if file_path.starts_with('/') {
-        file_path.trim_end_matches('/').to_string()
-    } else {
-        format!("/{}", file_path.trim_end_matches('/'))
-    };
+    // 规范化文件路径（移除前导斜杠和尾部斜杠）
+    let normalized_path = file_path
+        .trim_start_matches('/')
+        .trim_end_matches('/')
+        .to_string();
 
     // 从缓存中删除该文件/目录及其所有子文件
     let mut removed_count = 0;
@@ -1130,7 +1129,7 @@ pub async fn delete_file_from_server(
     let prefix = format!("{}/", normalized_path);
     let keys_to_remove: Vec<String> = cached_states
         .keys()
-        .filter(|k| k.starts_with(&prefix) || *k == &normalized_path)
+        .filter(|k| k.starts_with(&prefix))
         .cloned()
         .collect();
 
