@@ -14,6 +14,9 @@ use tracing_subscriber::prelude::*;
 // 全局日志 Guard
 static LOG_GUARD: OnceLock<tracing_appender::non_blocking::WorkerGuard> = OnceLock::new();
 
+// 全局 minimize_to_tray 配置（默认 true）
+static MINIMIZE_TO_TRAY: OnceLock<bool> = OnceLock::new();
+
 pub fn run() {
     // 初始化日志
     let log_dir = dirs::data_local_dir()
@@ -38,38 +41,35 @@ pub fn run() {
 
     tracing::info!("Claude Sync GUI 启动");
 
+    // 在启动时读取 minimize_to_tray 配置
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let minimize_to_tray = rt.block_on(async {
+        let config_manager = config::ConfigManager::new();
+        if let Ok(config) = config_manager.get_config().await {
+            config["ui"]["minimize_to_tray"].as_bool().unwrap_or(true)
+        } else {
+            true
+        }
+    });
+    let _ = MINIMIZE_TO_TRAY.set(minimize_to_tray);
+
     tauri::Builder::default()
+        .on_window_event(|_window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                if *MINIMIZE_TO_TRAY.get().unwrap_or(&true) {
+                    _window.hide().unwrap();
+                    api.prevent_close();
+                }
+                // 如果不最小化到托盘，允许窗口关闭（应用退出）
+            }
+        })
         .setup(|app| {
             let handle = app.handle();
             let config_manager = Arc::new(Mutex::new(config::ConfigManager::new()));
             let sync_state = Arc::new(Mutex::new(state::SyncState::new()));
 
-            app.manage(config_manager.clone());
+            app.manage(config_manager);
             app.manage(sync_state);
-
-            // 获取主窗口
-            let window = app.get_webview_window("main").expect("main window not found");
-
-            // 设置窗口关闭事件（根据配置决定行为）
-            window.on_window_event(move |window, event| {
-                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                    // 使用运行时获取的配置来决定行为
-                    let handle = window.app_handle();
-                    if let Some(manager) = handle.try_state::<Arc<Mutex<config::ConfigManager>>>() {
-                        let rt = tokio::runtime::Runtime::new().unwrap();
-                        if let Ok(config) = rt.block_on(async {
-                            manager.lock().await.get_config().await
-                        }) {
-                            let minimize_to_tray = config["ui"]["minimize_to_tray"].as_bool().unwrap_or(true);
-                            if minimize_to_tray {
-                                window.hide().unwrap();
-                                api.prevent_close();
-                            }
-                            // 如果不最小化到托盘，则允许窗口关闭（应用退出）
-                        }
-                    }
-                }
-            })?;
 
             // 创建系统托盘
             use tauri::menu::{MenuBuilder, MenuItemBuilder};
