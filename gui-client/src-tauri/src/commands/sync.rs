@@ -1110,16 +1110,62 @@ pub async fn delete_file_from_server(
     // 加载文件缓存
     let mut cached_states = load_file_cache(&claude_dir, &user_id).unwrap_or_default();
 
-    // 从缓存中删除该文件
-    if cached_states.remove(&file_path).is_some() {
-        info!("已从缓存中删除文件: {}", file_path);
+    // 规范化文件路径（确保以 / 开头且无尾部斜杠）
+    let normalized_path = if file_path.starts_with('/') {
+        file_path.trim_end_matches('/').to_string()
+    } else {
+        format!("/{}", file_path.trim_end_matches('/'))
+    };
 
-        // 保存更新后的缓存
-        // 重新扫描当前文件列表以保持缓存完整
-        let current_files = scan_files_with_hash(&claude_dir).await?;
-        save_file_cache(&claude_dir, &user_id, &current_files)?;
+    // 从缓存中删除该文件/目录及其所有子文件
+    let mut removed_count = 0;
+
+    // 首先尝试删除精确匹配的条目
+    if cached_states.remove(&normalized_path).is_some() {
+        removed_count += 1;
+        info!("已从缓存中删除: {}", normalized_path);
     }
 
+    // 然后删除所有以该路径为前缀的条目（子文件/子目录）
+    let prefix = format!("{}/", normalized_path);
+    let keys_to_remove: Vec<String> = cached_states
+        .keys()
+        .filter(|k| k.starts_with(&prefix) || *k == &normalized_path)
+        .cloned()
+        .collect();
+
+    for key in keys_to_remove {
+        if cached_states.remove(&key).is_some() {
+            removed_count += 1;
+            info!("已从缓存中删除子项: {}", key);
+        }
+    }
+
+    if removed_count > 0 {
+        info!("共从缓存中删除了 {} 个条目", removed_count);
+
+        // 保存更新后的缓存
+        save_file_cache_direct(&claude_dir, &user_id, &cached_states)?;
+    }
+
+    Ok(())
+}
+
+/// 直接保存文件缓存（用于部分更新）
+fn save_file_cache_direct(
+    claude_dir: &Path,
+    user_id: &str,
+    cached_states: &HashMap<String, String>,
+) -> Result<(), String> {
+    let cache_file = claude_dir.join(format!(".sync-cache-{}.json", user_id));
+
+    let cache_json = serde_json::to_string_pretty(cached_states)
+        .map_err(|e| format!("序列化缓存失败: {}", e))?;
+
+    std::fs::write(&cache_file, cache_json)
+        .map_err(|e| format!("写入缓存文件失败: {}", e))?;
+
+    debug!("文件缓存已保存到: {:?}", cache_file);
     Ok(())
 }
 
