@@ -1,7 +1,6 @@
 {
   "statusLine": {
     "type": "command",
-    "command": "powershell -NoProfile -Command \"$input = $input | ConvertFrom-Json; $dir = $input.workspace.current_dir; $model = $input.model.display_name; $outputStyle = $input.output_style.name; $branch = ''; try { $branch = git -C $dir rev-parse --abbrev-ref HEAD 2>$null; if ($branch) { $branch = \" [$branch]\" } } catch {}; Write-Output (\\\"$model |$outputStyle| $dir$branch\\\")\"",
-    "padding": 0
+    "command": "bash -c \"input=\\$(cat); model=\\$(echo \\\"\\$input\\\" | jq -r '.model.display_name'); dir=\\$(echo \\\"\\$input\\\" | jq -r '.workspace.current_dir'); branch=\\$(git -C \\\"\\$dir\\\" --no-optional-locks branch --show-current 2>/dev/null); context=\\$(echo \\\"\\$input\\\" | jq -r '.context_window.remaining_percentage // empty'); git_info=\\\"\\\"; [ -n \\\"\\$branch\\\" ] && git_info=\\\" [\\$branch]\\\"; context_info=\\\"\\\"; [ -n \\\"\\$context\\\" ] && context_info=\\\" | Context: \\$context%\\\"; printf \\\"%s%s | %s%s\\\" \\\"\\$model\\\" \\\"\\$git_info\\\" \\\"\\$dir\\\" \\\"\\$context_info\\\"\""
   }
 }
