@@ -1161,3 +1161,59 @@ h3 {
 .log-entry.log-error .log-level::before {
     content: 'ERROR';
 }
+
+/* ========== 服务器文件视图样式 ========== */
+
+.server-legend {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+}
+
+.legend-dot.synced {
+    background: #10b981;
+}
+
+.legend-dot.only-server {
+    background: #3b82f6;
+}
+
+.legend-dot.only-local {
+    background: #f59e0b;
+}
+
+/* 文件节点状态样式 */
+.tree-node-only-server {
+    color: #3b82f6;
+}
+
+.tree-node-only-local {
+    color: #f59e0b;
+}
+
+.tree-node-synced {
+    color: inherit;
+}
+
+/* 树状态图标颜色 */
+.tree-status.only-server {
+    color: #3b82f6;
+}
+
+.tree-status.only-local {
+    color: #f59e0b;
+}

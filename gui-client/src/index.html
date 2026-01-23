@@ -52,6 +52,14 @@
                     </svg>
                     <span>设备</span>
                 </a>
+                <a href="#server" class="nav-item" data-view="server">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                        <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                        <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                    </svg>
+                    <span>服务器</span>
+                </a>
                 <a href="#settings" class="nav-item" data-view="settings">
                     <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                         <circle cx="12" cy="12" r="3"></circle>
@@ -235,6 +243,41 @@
                 <h2>设备管理</h2>
                 <div class="devices-list" id="devicesList">
                     <div class="empty-state">暂无设备</div>
+                </div>
+            </section>
+
+            <!-- 服务器视图 -->
+            <section id="server-view" class="view">
+                <h2>服务器文件</h2>
+
+                <div class="sync-controls">
+                    <button id="refreshServerFilesBtn" class="btn btn-secondary">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"></path>
+                        </svg>
+                        刷新服务器文件
+                    </button>
+                    <div class="server-legend">
+                        <span class="legend-item">
+                            <span class="legend-dot synced"></span> 已同步
+                        </span>
+                        <span class="legend-item">
+                            <span class="legend-dot only-server"></span> 仅服务器（可下载）
+                        </span>
+                        <span class="legend-item">
+                            <span class="legend-dot only-local"></span> 仅本地
+                        </span>
+                    </div>
+                </div>
+
+                <div class="server-files" id="serverFilesContainer">
+                    <div class="file-list-header">
+                        <h3>服务器文件列表</h3>
+                        <div class="file-summary" id="serverFileSummary"></div>
+                    </div>
+                    <div class="file-tree-container" id="serverFileTreeContainer">
+                        <div class="empty-state">加载中...</div>
+                    </div>
                 </div>
             </section>
 
@@ -462,6 +505,15 @@
 
     <!-- 右键菜单 -->
     <div id="contextMenu" class="context-menu" style="display: none;">
+        <div class="context-menu-item" id="ctxDownloadFromServer">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            下载到本地
+        </div>
+        <div class="context-menu-separator"></div>
         <div class="context-menu-item" id="ctxAddToIgnore">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>

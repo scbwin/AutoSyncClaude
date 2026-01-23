@@ -48,6 +48,7 @@ const state = {
     username: null,  // 用户名用于显示
     // 文件树相关状态
     fileTree: null,
+    serverFileTree: null,  // 服务器文件树
     expandedFolders: new Set(['root']),
     selectedForSync: new Set(),
     contextMenuTarget: null,
@@ -426,6 +427,11 @@ function setupEventListeners() {
         await openIgnoreDialog();
     });
 
+    // 服务器文件视图
+    addListener('refreshServerFilesBtn', 'click', async () => {
+        await loadServerFileTree();
+    });
+
     // 忽略对话框
     addListener('closeIgnoreDialog', 'click', closeIgnoreDialog);
     addListener('closeIgnoreDialogBtn', 'click', closeIgnoreDialog);
@@ -438,6 +444,7 @@ function setupEventListeners() {
     });
 
     // 右键菜单
+    addListener('ctxDownloadFromServer', 'click', handleDownloadFromServer);
     addListener('ctxAddToIgnore', 'click', handleAddToIgnore);
     addListener('ctxDeleteFromServer', 'click', handleDeleteFromServer);
 
@@ -445,7 +452,7 @@ function setupEventListeners() {
     document.addEventListener('click', hideContextMenu);
     document.addEventListener('contextmenu', (e) => {
         // 如果不是在文件树上，则隐藏右键菜单
-        if (!e.target.closest('#fileTreeContainer')) {
+        if (!e.target.closest('#fileTreeContainer') && !e.target.closest('#serverFileTreeContainer')) {
             hideContextMenu();
         }
     });
@@ -520,6 +527,9 @@ function switchView(viewName) {
             break;
         case 'devices':
             loadDevices();
+            break;
+        case 'server':
+            loadServerFileTree();
             break;
         case 'settings':
             loadSettings();
@@ -1654,6 +1664,293 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+// ========== 服务器文件相关函数 ==========
+
+// 加载服务器文件树
+async function loadServerFileTree() {
+    const container = document.getElementById('serverFileTreeContainer');
+    if (!container) return;
+
+    container.innerHTML = '<div class="empty-state">加载中...</div>';
+
+    try {
+        console.log('[DEBUG] 开始加载服务器文件树...');
+        const tree = await invoke('get_server_file_tree');
+        console.log('[DEBUG] 服务器文件树加载完成');
+        state.serverFileTree = tree;
+        renderServerFileTree();
+        updateServerFileSummary();
+    } catch (error) {
+        console.error('Failed to load server file tree:', error);
+        container.innerHTML = '<div class="empty-state">加载失败: ' + escapeHtml(error) + '</div>';
+    }
+}
+
+// 渲染服务器文件树
+function renderServerFileTree() {
+    const container = document.getElementById('serverFileTreeContainer');
+    if (!container) return;
+
+    if (!state.serverFileTree) {
+        container.innerHTML = '<div class="empty-state">暂无文件</div>';
+        return;
+    }
+
+    container.innerHTML = renderServerTreeNode(state.serverFileTree, 0, '');
+}
+
+// 渲染服务器树节点
+function renderServerTreeNode(node, depth, _parentPath) {
+    const nodePath = node.path || 'root';
+    const isExpanded = state.expandedFolders.has(`server-${nodePath}`);
+    const hasChildren = node.children && node.children.length > 0;
+
+    const indentStyle = `padding-left: ${depth * 20 + 8}px;`;
+
+    // 图标
+    let iconSvg = '';
+    if (node.node_type === 'directory') {
+        iconSvg = `
+            <svg class="tree-icon-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+            </svg>
+        `;
+    } else {
+        iconSvg = `
+            <svg class="tree-icon-file" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+            </svg>
+        `;
+    }
+
+    // 状态图标
+    let statusIcon = '';
+    let statusClass = '';
+    switch (node.sync_status) {
+        case 'synced':
+            statusIcon = `
+                <svg class="tree-status synced" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <title>已同步</title>
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                </svg>
+            `;
+            statusClass = 'synced';
+            break;
+        case 'pending':
+            statusIcon = `
+                <svg class="tree-status pending" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <title>待同步</title>
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+            `;
+            statusClass = 'pending';
+            break;
+        case 'not_on_server':
+            statusIcon = `
+                <svg class="tree-status only-local" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <title>仅本地</title>
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="17 8 12 3 7 8"></polyline>
+                    <line x1="12" y1="3" x2="12" y2="15"></line>
+                </svg>
+            `;
+            statusClass = 'only-local';
+            break;
+        case 'only_on_server':
+            statusIcon = `
+                <svg class="tree-status only-server" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <title>仅服务器（可下载）</title>
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+            `;
+            statusClass = 'only-server';
+            break;
+    }
+
+    // Chevron 图标（仅用于有子项的目录）
+    let chevronHtml = '';
+    if (node.node_type === 'directory') {
+        const chevronClass = isExpanded ? 'expanded' : '';
+        chevronHtml = `
+            <svg class="tree-chevron ${chevronClass}" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 data-path="server-${escapeHtml(nodePath)}"
+                 onclick="event.stopPropagation(); toggleServerFolder('${escapeHtml(nodePath)}')">
+                <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+        `;
+    }
+
+    // 构建节点 HTML
+    let html = `
+        <div class="tree-node tree-node-${statusClass}"
+             data-path="${escapeHtml(nodePath)}"
+             data-type="${node.node_type}"
+             data-sync-status="${node.sync_status}"
+             data-exists-on-server="${node.exists_on_server}"
+             style="${indentStyle}"
+             oncontextmenu="showServerContextMenu(event, '${escapeHtml(nodePath)}', '${node.node_type}', '${node.sync_status}', ${node.exists_on_server})">
+            ${chevronHtml}
+            <div class="tree-icon">${iconSvg}</div>
+            <span class="tree-name" title="${escapeHtml(node.path || node.name)}">${escapeHtml(node.name)}</span>
+            <span class="tree-status-icon">${statusIcon}</span>
+            ${node.node_type === 'file' ? `<span class="tree-size">${formatSize(node.size)}</span>` : ''}
+        </div>
+    `;
+
+    // 渲染子节点（如果展开）
+    if (hasChildren && isExpanded) {
+        html += '<div class="tree-children">';
+        for (const child of node.children) {
+            html += renderServerTreeNode(child, depth + 1, null);
+        }
+        html += '</div>';
+    }
+
+    return html;
+}
+
+// 切换服务器文件夹展开/折叠
+function toggleServerFolder(path) {
+    const key = `server-${path}`;
+    if (state.expandedFolders.has(key)) {
+        state.expandedFolders.delete(key);
+    } else {
+        state.expandedFolders.add(key);
+    }
+    renderServerFileTree();
+}
+
+// 更新服务器文件摘要
+function updateServerFileSummary() {
+    const summaryEl = document.getElementById('serverFileSummary');
+    if (!summaryEl || !state.serverFileTree) {
+        return;
+    }
+
+    const stats = countServerFiles(state.serverFileTree);
+    summaryEl.innerHTML = `
+        <span>总文件: ${stats.total}</span>
+        <span>仅服务器: ${stats.only_server}</span>
+        <span>仅本地: ${stats.only_local}</span>
+        <span>已同步: ${stats.synced}</span>
+        <span>大小: ${formatSize(stats.size)}</span>
+    `;
+}
+
+// 统计服务器文件
+function countServerFiles(node) {
+    let total = 0;
+    let synced = 0;
+    let only_server = 0;
+    let only_local = 0;
+    let size = 0;
+
+    if (node.node_type === 'file') {
+        total++;
+        size += node.size;
+        if (node.sync_status === 'synced') synced++;
+        else if (node.sync_status === 'only_on_server') only_server++;
+        else if (node.sync_status === 'not_on_server') only_local++;
+    }
+
+    if (node.children) {
+        for (const child of node.children) {
+            const childStats = countServerFiles(child);
+            total += childStats.total;
+            synced += childStats.synced;
+            only_server += childStats.only_server;
+            only_local += childStats.only_local;
+            size += childStats.size;
+        }
+    }
+
+    return { total, synced, only_server, only_local, size };
+}
+
+// 显示服务器文件右键菜单
+window.showServerContextMenu = function(event, path, nodeType, syncStatus, existsOnServer) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    state.contextMenuTarget = { path, nodeType, syncStatus, existsOnServer };
+
+    const menu = document.getElementById('contextMenu');
+
+    // 根据文件状态显示/隐藏菜单选项
+    const downloadOption = document.getElementById('ctxDownloadFromServer');
+    const deleteOption = document.getElementById('ctxDeleteFromServer');
+
+    // 仅服务器文件可以下载
+    if (syncStatus === 'only_on_server' || syncStatus === 'only_on_server') {
+        downloadOption.style.display = 'flex';
+    } else {
+        downloadOption.style.display = 'none';
+    }
+
+    // 在服务器上的文件可以删除
+    if (existsOnServer) {
+        deleteOption.style.display = 'flex';
+    } else {
+        deleteOption.style.display = 'none';
+    }
+
+    menu.style.display = 'block';
+    menu.style.left = event.pageX + 'px';
+    menu.style.top = event.pageY + 'px';
+};
+
+// 处理从服务器下载文件
+async function handleDownloadFromServer() {
+    if (!state.contextMenuTarget) return;
+
+    const { path } = state.contextMenuTarget;
+
+    try {
+        const result = await invoke('download_file_from_server', { filePath: path });
+        showNotification(result, 'success');
+        hideContextMenu();
+
+        // 刷新服务器文件树
+        await loadServerFileTree();
+    } catch (error) {
+        console.error('Failed to download from server:', error);
+        showNotification('下载失败: ' + error, 'error');
+    }
+}
+
+// 更新 showContextMenu 以支持新的 sync_status
+const originalShowContextMenu = window.showContextMenu;
+window.showContextMenu = function(event, path, nodeType, existsOnServer) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    state.contextMenuTarget = { path, nodeType, existsOnServer };
+
+    const menu = document.getElementById('contextMenu');
+
+    // 根据文件是否在服务器上显示/隐藏"从服务器删除"选项
+    const deleteOption = document.getElementById('ctxDeleteFromServer');
+    const downloadOption = document.getElementById('ctxDownloadFromServer');
+
+    if (existsOnServer) {
+        deleteOption.style.display = 'flex';
+    } else {
+        deleteOption.style.display = 'none';
+    }
+
+    // 下载选项默认隐藏（在 sync 视图中不显示）
+    downloadOption.style.display = 'none';
+
+    menu.style.display = 'block';
+    menu.style.left = event.pageX + 'px';
+    menu.style.top = event.pageY + 'px';
+};
+
 // Make handleRemoveRule available globally
 window.handleRemoveRule = handleRemoveRule;
 
@@ -1664,6 +1961,7 @@ window.showContextMenu = showContextMenu;
 window.handleAddToIgnore = handleAddToIgnore;
 window.handleDeleteFromServer = handleDeleteFromServer;
 window.handleRemoveIgnorePattern = handleRemoveIgnorePattern;
+window.handleDownloadFromServer = handleDownloadFromServer;
 
 // Initialize when DOM is ready
 if (document.readyState === 'loading') {

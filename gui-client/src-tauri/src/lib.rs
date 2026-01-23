@@ -177,6 +177,8 @@ pub fn run() {
             commands::sync::remove_ignore_pattern,
             commands::sync::delete_file_from_server,
             commands::sync::get_debug_info,
+            commands::sync::get_server_file_tree,
+            commands::sync::download_file_from_server,
             commands::rules::list_rules,
             commands::rules::add_rule,
             commands::rules::remove_rule,

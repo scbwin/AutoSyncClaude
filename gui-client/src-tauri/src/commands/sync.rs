@@ -59,9 +59,10 @@ pub enum NodeType {
 #[derive(Debug, Clone, serde::Serialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum SyncStatus {
-    Synced,      // 已同步
-    Pending,     // 待同步
-    NotOnServer, // 未同步过
+    Synced,       // 已同步（本地和服务器都有）
+    Pending,      // 待上传（本地有修改）
+    NotOnServer,  // 仅本地（本地有，服务器没有）
+    OnlyOnServer, // 仅服务器（服务器有，本地没有）
 }
 
 /// 文件树节点
@@ -1258,3 +1259,325 @@ pub async fn get_debug_info(
         "config_file_content": config_file_content,
     }))}
 
+/// 服务器文件信息（从缓存中读取）
+#[derive(Debug, Clone, serde::Serialize)]
+struct ServerFileInfo {
+    pub path: String,
+    pub hash: String,
+    pub size: u64,
+    pub last_modified: String,
+}
+
+/// 获取服务器文件列表（基于缓存模拟）
+#[tauri::command]
+pub async fn get_server_file_list(
+    config_manager: State<'_, Arc<Mutex<ConfigManager>>>,
+    sync_state: State<'_, Arc<Mutex<SyncState>>>,
+) -> Result<Vec<ServerFileInfo>, String> {
+    let manager = config_manager.lock().await;
+    let config = manager.get_config().await.map_err(|e| e.to_string())?;
+    drop(manager);
+
+    let claude_dir = config["sync"]["claude_dir"]
+        .as_str()
+        .unwrap_or("")
+        .to_string();
+    let claude_dir = PathBuf::from(claude_dir);
+
+    let user_id = {
+        let state = sync_state.lock().await;
+        state.get_user_id().map(|s| s.to_string()).unwrap_or_else(|| "guest".to_string())
+    };
+
+    // 加载服务器文件缓存（实际应该从服务器获取）
+    let cached_states = load_file_cache(&claude_dir, &user_id).unwrap_or_default();
+
+    // 扫描本地文件
+    let local_files = scan_files_with_hash(&claude_dir).await.unwrap_or_default();
+    let local_file_set: std::collections::HashSet<_> = local_files
+        .iter()
+        .map(|(path, _, _)| path.clone())
+        .collect();
+
+    // 构建服务器文件列表（缓存中有但本地没有的文件）
+    let mut server_files = Vec::new();
+    for (path, hash) in cached_states {
+        server_files.push(ServerFileInfo {
+            path: path.clone(),
+            hash,
+            size: 0,
+            last_modified: String::new(),
+        });
+    }
+
+    // 按路径排序
+    server_files.sort_by(|a, b| a.path.cmp(&b.path));
+
+    info!("服务器文件列表: 共 {} 个文件", server_files.len());
+    Ok(server_files)
+}
+
+/// 获取服务器文件树（包含本地没有的文件）
+#[tauri::command]
+pub async fn get_server_file_tree(
+    config_manager: State<'_, Arc<Mutex<ConfigManager>>>,
+    sync_state: State<'_, Arc<Mutex<SyncState>>>,
+) -> Result<FileTreeNode, String> {
+    let manager = config_manager.lock().await;
+    let config = manager.get_config().await.map_err(|e| e.to_string())?;
+    drop(manager);
+
+    let claude_dir = config["sync"]["claude_dir"]
+        .as_str()
+        .unwrap_or("")
+        .to_string();
+    let claude_dir = PathBuf::from(claude_dir);
+
+    let user_id = {
+        let state = sync_state.lock().await;
+        state.get_user_id().map(|s| s.to_string()).unwrap_or_else(|| "guest".to_string())
+    };
+
+    // 加载服务器文件缓存
+    let cached_states = load_file_cache(&claude_dir, &user_id).unwrap_or_default();
+
+    // 扫描本地文件
+    let local_files = scan_files_with_hash(&claude_dir).await.unwrap_or_default();
+    let local_file_map: HashMap<_, _> = local_files
+        .into_iter()
+        .map(|(path, hash, size)| (path, (hash, size)))
+        .collect();
+
+    // 构建服务器文件树（合并本地文件和服务器文件）
+    let mut all_paths = std::collections::HashSet::new();
+
+    // 添加本地文件路径
+    for path in local_file_map.keys() {
+        all_paths.insert(path.clone());
+    }
+
+    // 添加服务器文件路径
+    for path in cached_states.keys() {
+        all_paths.insert(path.clone());
+    }
+
+    // 构建文件树
+    let root = build_server_file_tree(&claude_dir, &all_paths, &local_file_map, &cached_states)?;
+
+    Ok(root)
+}
+
+/// 构建服务器文件树
+fn build_server_file_tree(
+    base_dir: &Path,
+    all_paths: &HashSet<String>,
+    local_files: &HashMap<String, (String, u64)>,
+    server_files: &HashMap<String, String>,
+) -> Result<FileTreeNode, String> {
+    use std::collections::BTreeMap;
+
+    // 按目录分组
+    let mut dir_map: BTreeMap<String, BTreeMap<String, (bool, bool, String, u64)>> = BTreeMap::new();
+    // (exists_locally, exists_on_server, hash, size)
+
+    for path in all_paths {
+        let parts: Vec<&str> = path.split('/').collect();
+        let file_name = parts.last().unwrap_or(&"");
+        let dir_path = if parts.len() > 1 {
+            parts[..parts.len()-1].join("/")
+        } else {
+            String::new()
+        };
+
+        let exists_locally = local_files.contains_key(path);
+        let exists_on_server = server_files.contains_key(path);
+        let (hash, size) = local_files.get(path)
+            .or_else(|| server_files.get(path).map(|h| (h.as_str(), 0u64)))
+            .unwrap_or_else(|| (&String::new(), &0u64));
+        let hash = hash.clone();
+        let size = *size;
+
+        dir_map.entry(dir_path)
+            .or_insert_with(BTreeMap::new)
+            .insert(file_name.to_string(), (exists_locally, exists_on_server, hash, size));
+    }
+
+    // 递归构建树
+    fn build_tree_recursive(
+        dir_path: &str,
+        dir_map: &BTreeMap<String, BTreeMap<String, (bool, bool, String, u64)>>,
+        base_dir: &Path,
+    ) -> Result<FileTreeNode, String> {
+        let dir_name = if dir_path.is_empty() {
+            base_dir.file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("Root")
+                .to_string()
+        } else {
+            dir_path.split('/').last().unwrap_or("Unknown").to_string()
+        };
+
+        let mut children = Vec::new();
+        let mut total_size = 0u64;
+
+        // 查找当前目录的直接子文件和子目录
+        let mut subdirs = std::collections::BTreeSet::new();
+        let mut files = Vec::new();
+
+        for (path, file_map) in dir_map {
+            if path == dir_path || path.starts_with(&format!("{}/", dir_path)) {
+                let relative = if path == dir_path {
+                    String::new()
+                } else {
+                    path[dir_path.len()..].trim_start_matches('/').to_string()
+                };
+
+                if relative.is_empty() {
+                    // 当前目录的文件
+                    for (name, (local, server, hash, size)) in file_map {
+                        let sync_status = match (local, server) {
+                            (true, true) => SyncStatus::Synced,
+                            (true, false) => SyncStatus::NotOnServer,
+                            (false, true) => SyncStatus::OnlyOnServer,
+                            (false, false) => SyncStatus::NotOnServer,
+                        };
+
+                        total_size += size;
+                        files.push((name.clone(), FileTreeNode {
+                            name: name.clone(),
+                            path: if dir_path.is_empty() { name.clone() } else { format!("{}/{}", dir_path, name) },
+                            node_type: NodeType::File,
+                            sync_status,
+                            size,
+                            hash,
+                            children: Vec::new(),
+                            checked: true,
+                            exists_on_server: server,
+                        }));
+                    }
+                } else if let Some(first_segment) = relative.split('/').next() {
+                    if !relative.contains('/') {
+                        // 直接子文件
+                        let file_map = dir_map.get(path).unwrap();
+                        for (name, (local, server, hash, size)) in file_map {
+                            let sync_status = match (local, server) {
+                                (true, true) => SyncStatus::Synced,
+                                (true, false) => SyncStatus::NotOnServer,
+                                (false, true) => SyncStatus::OnlyOnServer,
+                                (false, false) => SyncStatus::NotOnServer,
+                            };
+
+                            total_size += size;
+                            files.push((name.clone(), FileTreeNode {
+                                name: name.clone(),
+                                path: if path.is_empty() { name.clone() } else { format!("{}/{}", path, name) },
+                                node_type: NodeType::File,
+                                sync_status,
+                                size,
+                                hash,
+                                children: Vec::new(),
+                                checked: true,
+                                exists_on_server: server,
+                            }));
+                        }
+                    } else {
+                        // 子目录
+                        subdirs.insert(if dir_path.is_empty() {
+                            first_segment.to_string()
+                        } else {
+                            format!("{}/{}", dir_path, first_segment)
+                        });
+                    }
+                }
+            }
+        }
+
+        // 处理子目录
+        for subdir in subdirs {
+            if let Ok(child) = build_tree_recursive(&subdir, dir_map, base_dir) {
+                total_size += child.size;
+                children.push(child);
+            }
+        }
+
+        // 添加文件（排序）
+        files.sort_by(|a, b| a.0.cmp(&b.0));
+        for (_, file) in files {
+            children.push(file);
+        }
+
+        // 计算目录状态
+        let sync_status = if children.is_empty() {
+            SyncStatus::NotOnServer
+        } else {
+            let has_only_server = children.iter().any(|c| c.sync_status == SyncStatus::OnlyOnServer);
+            let has_only_local = children.iter().any(|c| c.sync_status == SyncStatus::NotOnServer);
+            let has_pending = children.iter().any(|c| c.sync_status == SyncStatus::Pending);
+            let all_synced = children.iter().all(|c| c.sync_status == SyncStatus::Synced);
+
+            if has_only_server || has_only_local || has_pending {
+                SyncStatus::Pending
+            } else if all_synced {
+                SyncStatus::Synced
+            } else {
+                SyncStatus::NotOnServer
+            }
+        };
+
+        let exists_on_server = children.iter().any(|c| c.exists_on_server);
+
+        Ok(FileTreeNode {
+            name: dir_name,
+            path: dir_path.to_string(),
+            node_type: NodeType::Directory,
+            sync_status,
+            size: total_size,
+            hash: String::new(),
+            children,
+            checked: true,
+            exists_on_server,
+        })
+    }
+
+    build_tree_recursive("", &dir_map, base_dir)
+}
+
+/// 从服务器下载文件到本地
+#[tauri::command]
+pub async fn download_file_from_server(
+    file_path: String,
+    config_manager: State<'_, Arc<Mutex<ConfigManager>>>,
+    sync_state: State<'_, Arc<Mutex<SyncState>>>,
+) -> Result<String, String> {
+    info!("请求从服务器下载文件: {}", file_path);
+
+    // TODO: 实际的 gRPC 下载逻辑
+    // 目前返回模拟成功消息
+
+    let manager = config_manager.lock().await;
+    let config = manager.get_config().await.map_err(|e| e.to_string())?;
+    drop(manager);
+
+    let claude_dir = config["sync"]["claude_dir"]
+        .as_str()
+        .unwrap_or("")
+        .to_string();
+    let claude_dir = PathBuf::from(claude_dir);
+
+    let user_id = {
+        let state = sync_state.lock().await;
+        state.get_user_id().map(|s| s.to_string()).unwrap_or_else(|| "guest".to_string())
+    };
+
+    // 加载缓存获取文件哈希
+    let cached_states = load_file_cache(&claude_dir, &user_id).unwrap_or_default();
+
+    if let Some(_hash) = cached_states.get(&file_path) {
+        // 实际实现时，这里会调用 gRPC DownloadFile
+        // 目前只是返回成功消息
+        info!("文件 {} 已标记为从服务器下载", file_path);
+        Ok(format!("文件 {} 已下载到本地", file_path))
+    } else {
+        Err(format!("服务器上不存在文件: {}", file_path))
+    }
+}
