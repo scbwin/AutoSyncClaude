@@ -7,6 +7,28 @@ const invoke = window.__TAURI__?.core?.invoke
         return Promise.reject(new Error('Tauri API 不可用'));
     };
 
+// ========== DOM 安全访问辅助函数 ==========
+// 安全地获取 DOM 元素，如果元素不存在则返回 null
+function $(id) {
+    return document.getElementById(id);
+}
+
+// 安全地设置元素属性，如果元素不存在则跳过
+function setAttr(id, prop, value) {
+    const el = $(id);
+    if (el) {
+        el[prop] = value;
+    }
+}
+
+// 安全地添加事件监听器，如果元素不存在则跳过
+function addListener(id, event, handler) {
+    const el = $(id);
+    if (el) {
+        el.addEventListener(event, handler);
+    }
+}
+
 // App state
 const state = {
     currentView: 'dashboard',
@@ -235,12 +257,15 @@ function setupLogsPanelListeners() {
 
 // 切换登录/注册模式
 function switchAuthMode(mode) {
+    const loginDialog = $('loginDialog');
+    const registerDialog = $('registerDialog');
+
     if (mode === 'register') {
-        document.getElementById('loginDialog').classList.remove('active');
-        document.getElementById('registerDialog').classList.add('active');
+        if (loginDialog) loginDialog.classList.remove('active');
+        if (registerDialog) registerDialog.classList.add('active');
     } else {
-        document.getElementById('registerDialog').classList.remove('active');
-        document.getElementById('loginDialog').classList.add('active');
+        if (registerDialog) registerDialog.classList.remove('active');
+        if (loginDialog) loginDialog.classList.add('active');
     }
 }
 
@@ -324,83 +349,88 @@ async function checkAuthStatus() {
 // Setup event listeners
 function setupEventListeners() {
     // Login dialog
-    document.getElementById('closeLoginDialog').addEventListener('click', () => {
-        document.getElementById('loginDialog').classList.remove('active');
+    addListener('closeLoginDialog', 'click', () => {
+        const el = $('loginDialog');
+        if (el) el.classList.remove('active');
     });
 
-    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    addListener('loginForm', 'submit', async (e) => {
         e.preventDefault();
         await handleLogin();
     });
 
     // Register dialog
-    document.getElementById('closeRegisterDialog').addEventListener('click', () => {
-        document.getElementById('registerDialog').classList.remove('active');
+    addListener('closeRegisterDialog', 'click', () => {
+        const el = $('registerDialog');
+        if (el) el.classList.remove('active');
     });
 
-    document.getElementById('registerForm').addEventListener('submit', async (e) => {
+    addListener('registerForm', 'submit', async (e) => {
         e.preventDefault();
         await handleRegister();
     });
 
     // 切换登录/注册
-    document.getElementById('switchToRegister').addEventListener('click', (e) => {
+    addListener('switchToRegister', 'click', (e) => {
         e.preventDefault();
         switchAuthMode('register');
     });
 
-    document.getElementById('switchToLogin').addEventListener('click', (e) => {
+    addListener('switchToLogin', 'click', (e) => {
         e.preventDefault();
         switchAuthMode('login');
     });
 
     // Rule dialog
-    document.getElementById('closeRuleDialog').addEventListener('click', () => {
-        document.getElementById('ruleDialog').classList.remove('active');
+    addListener('closeRuleDialog', 'click', () => {
+        const el = $('ruleDialog');
+        if (el) el.classList.remove('active');
     });
 
-    document.getElementById('ruleForm').addEventListener('submit', async (e) => {
+    addListener('ruleForm', 'submit', async (e) => {
         e.preventDefault();
         await handleAddRule();
     });
 
-    document.getElementById('addRuleBtn').addEventListener('click', () => {
-        document.getElementById('ruleDialog').classList.add('active');
+    addListener('addRuleBtn', 'click', () => {
+        const el = $('ruleDialog');
+        if (el) el.classList.add('active');
     });
 
     // User info click - 支持退出登录
-    document.getElementById('userInfo').addEventListener('click', async () => {
+    addListener('userInfo', 'click', async () => {
         if (state.isLoggedIn) {
             if (confirm('是否要退出登录？')) {
                 await handleLogout();
             }
         } else {
-            document.getElementById('loginDialog').classList.add('active');
+            const el = $('loginDialog');
+            if (el) el.classList.add('active');
         }
     });
 
     // Sync controls
-    document.getElementById('startSyncBtn').addEventListener('click', async () => {
+    addListener('startSyncBtn', 'click', async () => {
         await handleStartSync();
     });
 
-    document.getElementById('stopSyncBtn').addEventListener('click', async () => {
+    addListener('stopSyncBtn', 'click', async () => {
         await handleStopSync();
     });
 
-    document.getElementById('refreshTreeBtn').addEventListener('click', async () => {
+    addListener('refreshTreeBtn', 'click', async () => {
         await loadFileTree();
     });
 
-    document.getElementById('editIgnoreBtn').addEventListener('click', async () => {
+    addListener('editIgnoreBtn', 'click', async () => {
         await openIgnoreDialog();
     });
 
     // 忽略对话框
-    document.getElementById('closeIgnoreDialog').addEventListener('click', closeIgnoreDialog);
-    document.getElementById('closeIgnoreDialogBtn').addEventListener('click', closeIgnoreDialog);
-    document.getElementById('addIgnorePatternBtn').addEventListener('click', handleAddIgnorePattern);
-    document.getElementById('newIgnorePattern').addEventListener('keypress', (e) => {
+    addListener('closeIgnoreDialog', 'click', closeIgnoreDialog);
+    addListener('closeIgnoreDialogBtn', 'click', closeIgnoreDialog);
+    addListener('addIgnorePatternBtn', 'click', handleAddIgnorePattern);
+    addListener('newIgnorePattern', 'keypress', (e) => {
         if (e.key === 'Enter') {
             e.preventDefault();
             handleAddIgnorePattern();
@@ -408,8 +438,8 @@ function setupEventListeners() {
     });
 
     // 右键菜单
-    document.getElementById('ctxAddToIgnore').addEventListener('click', handleAddToIgnore);
-    document.getElementById('ctxDeleteFromServer').addEventListener('click', handleDeleteFromServer);
+    addListener('ctxAddToIgnore', 'click', handleAddToIgnore);
+    addListener('ctxDeleteFromServer', 'click', handleDeleteFromServer);
 
     // 点击其他地方关闭右键菜单
     document.addEventListener('click', hideContextMenu);
@@ -421,16 +451,16 @@ function setupEventListeners() {
     });
 
     // Settings
-    document.getElementById('saveSettingsBtn').addEventListener('click', async () => {
+    addListener('saveSettingsBtn', 'click', async () => {
         await handleSaveSettings();
     });
 
-    document.getElementById('resetSettingsBtn').addEventListener('click', async () => {
+    addListener('resetSettingsBtn', 'click', async () => {
         await handleResetSettings();
     });
 
     // Autostart checkbox
-    document.getElementById('autostartEnabled').addEventListener('change', async (e) => {
+    addListener('autostartEnabled', 'change', async (e) => {
         const enabled = e.target.checked;
         try {
             if (enabled) {
@@ -505,24 +535,39 @@ function updateUI() {
 
 // Update auth UI
 function updateAuthUI() {
-    const userInfo = document.getElementById('userInfo');
+    const userInfo = $('userInfo');
+    if (!userInfo) return;
+
+    const avatar = userInfo.querySelector('.user-avatar');
+    const name = userInfo.querySelector('.user-name');
+    const email = userInfo.querySelector('.user-email');
+
     if (state.isLoggedIn) {
         const displayName = state.username || (state.user?.id && state.user.id.trim()) || '用户';
-        userInfo.querySelector('.user-avatar').textContent = displayName[0].toUpperCase();
-        userInfo.querySelector('.user-name').textContent = displayName;
-        userInfo.querySelector('.user-email').textContent = '点击退出登录';
+        if (avatar) avatar.textContent = displayName[0].toUpperCase();
+        if (name) name.textContent = displayName;
+        if (email) email.textContent = '点击退出登录';
     } else {
-        userInfo.querySelector('.user-avatar').textContent = '?';
-        userInfo.querySelector('.user-name').textContent = '未登录';
-        userInfo.querySelector('.user-email').textContent = '点击登录';
+        if (avatar) avatar.textContent = '?';
+        if (name) name.textContent = '未登录';
+        if (email) email.textContent = '点击登录';
     }
 }
 
 // Handle login
 async function handleLogin() {
-    const email = document.getElementById('loginEmail').value;
-    const password = document.getElementById('loginPassword').value;
-    const deviceName = document.getElementById('deviceName').value;
+    const emailEl = $('loginEmail');
+    const passwordEl = $('loginPassword');
+    const deviceNameEl = $('deviceName');
+
+    if (!emailEl || !passwordEl) {
+        showNotification('登录表单元素未找到', 'error');
+        return;
+    }
+
+    const email = emailEl.value;
+    const password = passwordEl.value;
+    const deviceName = deviceNameEl?.value || '';
 
     try {
         const result = await invoke('login', {
@@ -538,7 +583,8 @@ async function handleLogin() {
             deviceId: result.device_id,
         };
 
-        document.getElementById('loginDialog').classList.remove('active');
+        const loginDialog = $('loginDialog');
+        if (loginDialog) loginDialog.classList.remove('active');
         updateAuthUI();
 
         // Show success notification
@@ -578,13 +624,13 @@ async function checkAndStartAutoSync() {
 
         console.log('自动启动同步已启用，开始同步...');
         // 使用 UI 中的同步模式或默认值
-        const syncModeSelect = document.getElementById('syncMode');
+        const syncModeSelect = $('syncMode');
         const mode = syncModeSelect?.value || 'auto';
         await invoke('start_sync', { mode });
 
-        const startBtn = document.getElementById('startSyncBtn');
-        const stopBtn = document.getElementById('stopSyncBtn');
-        const progress = document.getElementById('syncProgress');
+        const startBtn = $('startSyncBtn');
+        const stopBtn = $('stopSyncBtn');
+        const progress = $('syncProgress');
 
         if (startBtn) startBtn.disabled = true;
         if (stopBtn) stopBtn.disabled = false;
@@ -599,10 +645,20 @@ async function checkAndStartAutoSync() {
 
 // Handle register
 async function handleRegister() {
-    const username = document.getElementById('registerUsername').value.trim();
-    const email = document.getElementById('registerEmail').value.trim();
-    const password = document.getElementById('registerPassword').value;
-    const confirmPassword = document.getElementById('registerConfirmPassword').value;
+    const usernameEl = $('registerUsername');
+    const emailEl = $('registerEmail');
+    const passwordEl = $('registerPassword');
+    const confirmPasswordEl = $('registerConfirmPassword');
+
+    if (!usernameEl || !emailEl || !passwordEl || !confirmPasswordEl) {
+        showNotification('注册表单元素未找到', 'error');
+        return;
+    }
+
+    const username = usernameEl.value.trim();
+    const email = emailEl.value.trim();
+    const password = passwordEl.value;
+    const confirmPassword = confirmPasswordEl.value;
 
     // 验证
     if (password !== confirmPassword) {
@@ -630,8 +686,10 @@ async function handleRegister() {
 
         // 切换到登录界面并预填邮箱
         switchAuthMode('login');
-        document.getElementById('loginEmail').value = email;
-        document.getElementById('registerForm').reset();
+        const loginEmailEl = $('loginEmail');
+        const registerFormEl = $('registerForm');
+        if (loginEmailEl) loginEmailEl.value = email;
+        if (registerFormEl) registerFormEl.reset();
     } catch (error) {
         console.error('Register failed:', error);
         showNotification('注册失败: ' + error, 'error');
@@ -658,19 +716,23 @@ async function handleStartSync() {
     // 检查登录状态
     if (!state.isLoggedIn) {
         showNotification('请先登录后再开始同步', 'error');
-        document.getElementById('loginDialog').classList.add('active');
+        const loginDialog = $('loginDialog');
+        if (loginDialog) loginDialog.classList.add('active');
         return;
     }
 
-    const mode = document.getElementById('syncMode').value;
+    const syncModeEl = $('syncMode');
+    const mode = syncModeEl?.value || 'auto';
 
     try {
         const result = await invoke('start_sync', { mode });
         console.log('Start sync result:', result);
 
-        document.getElementById('startSyncBtn').disabled = true;
-        document.getElementById('stopSyncBtn').disabled = false;
-        document.getElementById('syncProgress').style.display = 'block';
+        setAttr('startSyncBtn', 'disabled', true);
+        setAttr('stopSyncBtn', 'disabled', false);
+
+        const syncProgressEl = $('syncProgress');
+        if (syncProgressEl) syncProgressEl.style.display = 'block';
 
         // Start polling sync status
         pollSyncStatus();
@@ -688,9 +750,11 @@ async function handleStopSync() {
         await invoke('stop_sync');
         console.log('Sync stopped');
 
-        document.getElementById('startSyncBtn').disabled = false;
-        document.getElementById('stopSyncBtn').disabled = true;
-        document.getElementById('syncProgress').style.display = 'none';
+        setAttr('startSyncBtn', 'disabled', false);
+        setAttr('stopSyncBtn', 'disabled', true);
+
+        const syncProgressEl = $('syncProgress');
+        if (syncProgressEl) syncProgressEl.style.display = 'none';
 
         showNotification('同步已停止', 'success');
     } catch (error) {
@@ -708,22 +772,24 @@ async function pollSyncStatus() {
 
             // Update progress
             if (status.is_syncing) {
-                document.getElementById('syncStatusText').textContent = '同步中...';
-                document.getElementById('syncPercentage').textContent = Math.round(status.progress) + '%';
-                document.getElementById('progressBar').style.width = status.progress + '%';
+                setAttr('syncStatusText', 'textContent', '同步中...');
+                setAttr('syncPercentage', 'textContent', Math.round(status.progress) + '%');
+                const progressBarEl = $('progressBar');
+                if (progressBarEl) progressBarEl.style.width = status.progress + '%';
             } else {
                 clearInterval(interval);
-                document.getElementById('startSyncBtn').disabled = false;
-                document.getElementById('stopSyncBtn').disabled = true;
-                document.getElementById('syncProgress').style.display = 'none';
+                setAttr('startSyncBtn', 'disabled', false);
+                setAttr('stopSyncBtn', 'disabled', true);
+                const syncProgressEl = $('syncProgress');
+                if (syncProgressEl) syncProgressEl.style.display = 'none';
 
                 // 同步完成后刷新文件列表
                 await loadPendingFiles();
             }
 
             // Update dashboard stats
-            document.getElementById('syncedCount').textContent = status.synced_files;
-            document.getElementById('failedCount').textContent = status.failed_files;
+            setAttr('syncedCount', 'textContent', status.synced_files);
+            setAttr('failedCount', 'textContent', status.failed_files);
         } catch (error) {
             console.error('Failed to poll sync status:', error);
             clearInterval(interval);
@@ -737,13 +803,15 @@ async function loadSyncStatus() {
         const status = await invoke('get_sync_status');
         state.syncStatus = status;
 
-        document.getElementById('startSyncBtn').disabled = status.is_syncing;
-        document.getElementById('stopSyncBtn').disabled = !status.is_syncing;
+        setAttr('startSyncBtn', 'disabled', status.is_syncing);
+        setAttr('stopSyncBtn', 'disabled', !status.is_syncing);
 
         if (status.is_syncing) {
-            document.getElementById('syncProgress').style.display = 'block';
-            document.getElementById('syncPercentage').textContent = Math.round(status.progress) + '%';
-            document.getElementById('progressBar').style.width = status.progress + '%';
+            const syncProgressEl = $('syncProgress');
+            if (syncProgressEl) syncProgressEl.style.display = 'block';
+            setAttr('syncPercentage', 'textContent', Math.round(status.progress) + '%');
+            const progressBarEl = $('progressBar');
+            if (progressBarEl) progressBarEl.style.width = status.progress + '%';
             pollSyncStatus();
         }
     } catch (error) {
@@ -1208,18 +1276,18 @@ function formatSize(bytes) {
 async function loadDashboardData() {
     try {
         const status = await invoke('get_sync_status');
-        document.getElementById('syncedCount').textContent = status.synced_files;
-        document.getElementById('failedCount').textContent = status.failed_files;
+        setAttr('syncedCount', 'textContent', status.synced_files);
+        setAttr('failedCount', 'textContent', status.failed_files);
 
         if (status.last_sync) {
             const lastSync = new Date(status.last_sync);
-            document.getElementById('lastSync').textContent = formatTime(lastSync);
+            setAttr('lastSync', 'textContent', formatTime(lastSync));
         }
 
         // Load rules count
         const rules = await invoke('list_rules');
         state.rules = rules;
-        document.getElementById('rulesCount').textContent = rules.length;
+        setAttr('rulesCount', 'textContent', rules.length);
     } catch (error) {
         console.error('Failed to load dashboard data:', error);
     }
@@ -1270,11 +1338,22 @@ function renderRules() {
 
 // Handle add rule
 async function handleAddRule() {
-    const name = document.getElementById('ruleName').value;
-    const ruleType = document.getElementById('ruleType').value;
-    const pattern = document.getElementById('rulePattern').value;
-    const fileType = document.getElementById('ruleFileType').value || null;
-    const priority = parseInt(document.getElementById('rulePriority').value);
+    const nameEl = $('ruleName');
+    const ruleTypeEl = $('ruleType');
+    const patternEl = $('rulePattern');
+    const fileTypeEl = $('ruleFileType');
+    const priorityEl = $('rulePriority');
+
+    if (!nameEl || !ruleTypeEl || !patternEl || !priorityEl) {
+        showNotification('规则表单元素未找到', 'error');
+        return;
+    }
+
+    const name = nameEl.value;
+    const ruleType = ruleTypeEl.value;
+    const pattern = patternEl.value;
+    const fileType = fileTypeEl?.value || null;
+    const priority = parseInt(priorityEl.value);
 
     try {
         await invoke('add_rule', {
@@ -1285,8 +1364,10 @@ async function handleAddRule() {
             priority,
         });
 
-        document.getElementById('ruleDialog').classList.remove('active');
-        document.getElementById('ruleForm').reset();
+        const ruleDialog = $('ruleDialog');
+        const ruleForm = $('ruleForm');
+        if (ruleDialog) ruleDialog.classList.remove('active');
+        if (ruleForm) ruleForm.reset();
 
         await loadRules();
         showNotification('规则添加成功', 'success');
@@ -1364,47 +1445,67 @@ function loadSettings() {
     const sync = state.config.sync || {};
     const ui = state.config.ui || {};
 
-    document.getElementById('serverAddress').value = server.address || 'http://localhost:50051';
-    document.getElementById('healthCheckAddress').value = server.health_check_address || 'http://localhost:8080';
-    document.getElementById('serverTimeout').value = server.timeout || 30;
-    document.getElementById('claudeDir').value = sync.claude_dir || '';
-    document.getElementById('syncInterval').value = sync.interval || 60;
-    document.getElementById('autoStart').checked = sync.auto_start || false;
+    setAttr('serverAddress', 'value', server.address || 'http://localhost:50051');
+    setAttr('healthCheckAddress', 'value', server.health_check_address || 'http://localhost:8080');
+    setAttr('serverTimeout', 'value', server.timeout || 30);
+    setAttr('claudeDir', 'value', sync.claude_dir || '');
+    setAttr('syncInterval', 'value', sync.interval || 60);
+    setAttr('autoStart', 'checked', sync.auto_start || false);
 
     // 安全地设置 autostartEnabled checkbox
-    const autostartCheckbox = document.getElementById('autostartEnabled');
+    const autostartCheckbox = $('autostartEnabled');
     if (autostartCheckbox) {
         autostartCheckbox.checked = state.autostartEnabled || false;
     }
 
-    document.getElementById('theme').value = ui.theme || 'system';
-    document.getElementById('language').value = ui.language || 'zh-CN';
-    document.getElementById('minimizeToTray').checked = ui.minimize_to_tray !== false;
-    document.getElementById('showNotifications').checked = ui.show_notifications !== false;
+    setAttr('theme', 'value', ui.theme || 'system');
+    setAttr('language', 'value', ui.language || 'zh-CN');
+    setAttr('minimizeToTray', 'checked', ui.minimize_to_tray !== false);
+    setAttr('showNotifications', 'checked', ui.show_notifications !== false);
 }
 
 // Handle save settings
 async function handleSaveSettings() {
     const oldAutoStart = state.config?.sync?.auto_start || false;
-    const newAutoStart = document.getElementById('autoStart').checked;
+    const autoStartEl = $('autoStart');
+    const newAutoStart = autoStartEl?.checked || false;
+
+    // 获取所有设置元素
+    const serverAddressEl = $('serverAddress');
+    const healthCheckAddressEl = $('healthCheckAddress');
+    const serverTimeoutEl = $('serverTimeout');
+    const claudeDirEl = $('claudeDir');
+    const syncIntervalEl = $('syncInterval');
+    const themeEl = $('theme');
+    const languageEl = $('language');
+    const minimizeToTrayEl = $('minimizeToTray');
+    const showNotificationsEl = $('showNotifications');
+
+    // 验证必需的元素
+    if (!serverAddressEl || !healthCheckAddressEl || !serverTimeoutEl ||
+        !claudeDirEl || !syncIntervalEl || !themeEl || !languageEl ||
+        !minimizeToTrayEl || !showNotificationsEl) {
+        showNotification('设置表单元素未找到', 'error');
+        return;
+    }
 
     const newConfig = {
         server: {
-            address: document.getElementById('serverAddress').value,
-            health_check_address: document.getElementById('healthCheckAddress').value,
-            timeout: parseInt(document.getElementById('serverTimeout').value),
+            address: serverAddressEl.value,
+            health_check_address: healthCheckAddressEl.value,
+            timeout: parseInt(serverTimeoutEl.value),
         },
         sync: {
-            claude_dir: document.getElementById('claudeDir').value,
-            interval: parseInt(document.getElementById('syncInterval').value),
+            claude_dir: claudeDirEl.value,
+            interval: parseInt(syncIntervalEl.value),
             auto_start: newAutoStart,
             exclude_patterns: state.config?.sync?.exclude_patterns || [],
         },
         ui: {
-            theme: document.getElementById('theme').value,
-            language: document.getElementById('language').value,
-            minimize_to_tray: document.getElementById('minimizeToTray').checked,
-            show_notifications: document.getElementById('showNotifications').checked,
+            theme: themeEl.value,
+            language: languageEl.value,
+            minimize_to_tray: minimizeToTrayEl.checked,
+            show_notifications: showNotificationsEl.checked,
         },
     };
 
@@ -1422,13 +1523,13 @@ async function handleSaveSettings() {
             if (!syncStatus.is_syncing) {
                 console.log('自动启动同步已启用，立即开始同步...');
                 // 使用 UI 中的同步模式或默认值
-                const syncModeSelect = document.getElementById('syncMode');
+                const syncModeSelect = $('syncMode');
                 const mode = syncModeSelect?.value || 'auto';
                 await invoke('start_sync', { mode });
 
-                const startBtn = document.getElementById('startSyncBtn');
-                const stopBtn = document.getElementById('stopSyncBtn');
-                const progress = document.getElementById('syncProgress');
+                const startBtn = $('startSyncBtn');
+                const stopBtn = $('stopSyncBtn');
+                const progress = $('syncProgress');
                 if (startBtn) startBtn.disabled = true;
                 if (stopBtn) stopBtn.disabled = false;
                 if (progress) progress.style.display = 'block';

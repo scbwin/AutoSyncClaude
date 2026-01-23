@@ -42,7 +42,12 @@ pub fn run() {
     tracing::info!("Claude Sync GUI 启动");
 
     // 在启动时读取 minimize_to_tray 配置
-    let rt = tokio::runtime::Runtime::new().unwrap();
+    let rt = tokio::runtime::Runtime::new()
+        .map_err(|e| {
+            tracing::error!("创建 Tokio Runtime 失败: {}", e);
+            e
+        })
+        .expect("无法创建异步运行时，程序无法继续");
     let minimize_to_tray = rt.block_on(async {
         let config_manager = config::ConfigManager::new();
         if let Ok(config) = config_manager.get_config().await {
@@ -84,15 +89,28 @@ pub fn run() {
                 .items(&[&show, &hide, &quit])
                 .build()?;
 
-            // 加载托盘图标
-            let icon_bytes = include_bytes!("../icons/32x32.png");
-            let icon_image = image::load_from_memory(icon_bytes)?.to_rgba8();
-            let (width, height) = (icon_image.width(), icon_image.height());
-            let icon = tauri::image::Image::new_owned(
-                icon_image.into_raw(),
-                width,
-                height,
-            );
+            // 加载托盘图标（容错处理）
+            let icon = match (|| -> Result<tauri::image::Image<'_>, Box<dyn std::error::Error>> {
+                let icon_bytes = include_bytes!("../icons/32x32.png");
+                let icon_image = image::load_from_memory(icon_bytes)?.to_rgba8();
+                let (width, height) = (icon_image.width(), icon_image.height());
+                Ok(tauri::image::Image::new_owned(
+                    icon_image.into_raw(),
+                    width,
+                    height,
+                ))
+            })() {
+                Ok(img) => {
+                    tracing::info!("托盘图标加载成功");
+                    img
+                }
+                Err(e) => {
+                    tracing::warn!("托盘图标加载失败: {}，使用默认图标", e);
+                    // 创建一个简单的 16x16 纯色图标作为后备
+                    let rgba = vec![0u8; 16 * 16 * 4];  // 透明黑色
+                    tauri::image::Image::new_owned(rgba, 16, 16)
+                }
+            };
 
             let _tray = TrayIconBuilder::new()
                 .icon(icon)
