@@ -18,15 +18,11 @@ static LOG_GUARD: OnceLock<tracing_appender::non_blocking::WorkerGuard> = OnceLo
 static MINIMIZE_TO_TRAY: OnceLock<bool> = OnceLock::new();
 
 pub fn run() {
-    println!("=== Claude Sync GUI 启动中 ===");
-
     // 初始化日志
     let log_dir = dirs::data_local_dir()
         .unwrap_or_else(|| std::path::PathBuf::from("."))
         .join("claude-sync")
         .join("logs");
-
-    println!("日志目录: {:?}", log_dir);
 
     let _ = std::fs::create_dir_all(&log_dir);
 
@@ -44,10 +40,8 @@ pub fn run() {
         .init();
 
     tracing::info!("Claude Sync GUI 启动");
-    println!("日志系统已初始化");
 
     // 在启动时读取 minimize_to_tray 配置
-    println!("创建 Tokio Runtime...");
     let rt = tokio::runtime::Runtime::new()
         .map_err(|e| {
             tracing::error!("创建 Tokio Runtime 失败: {}", e);
@@ -63,9 +57,7 @@ pub fn run() {
         }
     });
     let _ = MINIMIZE_TO_TRAY.set(minimize_to_tray);
-    println!("minimize_to_tray 配置已加载: {}", minimize_to_tray);
 
-    println!("创建 Tauri Builder...");
     tauri::Builder::default()
         .plugin(tauri_plugin_autostart::Builder::new().build())
         .on_window_event(|_window, event| {
@@ -78,7 +70,6 @@ pub fn run() {
             }
         })
         .setup(|app| {
-            println!("Tauri setup 开始...");
             let handle = app.handle();
             let config_manager = Arc::new(Mutex::new(config::ConfigManager::new()));
             let sync_state = Arc::new(Mutex::new(state::SyncState::new()));
@@ -87,7 +78,6 @@ pub fn run() {
             app.manage(sync_state);
 
             // 创建系统托盘
-            println!("创建系统托盘...");
             use tauri::menu::{MenuBuilder, MenuItemBuilder};
             use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 
