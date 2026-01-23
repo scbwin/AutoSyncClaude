@@ -2,7 +2,7 @@ use crate::config::ConfigManager;
 use crate::state::SyncState;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -1292,13 +1292,6 @@ pub async fn get_server_file_list(
     // 加载服务器文件缓存（实际应该从服务器获取）
     let cached_states = load_file_cache(&claude_dir, &user_id).unwrap_or_default();
 
-    // 扫描本地文件
-    let local_files = scan_files_with_hash(&claude_dir).await.unwrap_or_default();
-    let local_file_set: std::collections::HashSet<_> = local_files
-        .iter()
-        .map(|(path, _, _)| path.clone())
-        .collect();
-
     // 构建服务器文件列表（缓存中有但本地没有的文件）
     let mut server_files = Vec::new();
     for (path, hash) in cached_states {
@@ -1382,7 +1375,7 @@ fn build_server_file_tree(
 
     for path in all_paths {
         let parts: Vec<&str> = path.split('/').collect();
-        let file_name = parts.last().unwrap_or(&"");
+        let file_name = parts.last().copied().unwrap_or("");
         let dir_path = if parts.len() > 1 {
             parts[..parts.len()-1].join("/")
         } else {
@@ -1391,11 +1384,14 @@ fn build_server_file_tree(
 
         let exists_locally = local_files.contains_key(path);
         let exists_on_server = server_files.contains_key(path);
-        let (hash, size) = local_files.get(path)
-            .or_else(|| server_files.get(path).map(|h| (h.as_str(), 0u64)))
-            .unwrap_or_else(|| (&String::new(), &0u64));
-        let hash = hash.clone();
-        let size = *size;
+
+        let (hash, size) = if let Some((h, s)) = local_files.get(path) {
+            (h.clone(), *s)
+        } else if let Some(h) = server_files.get(path) {
+            (h.clone(), 0u64)
+        } else {
+            (String::new(), 0u64)
+        };
 
         dir_map.entry(dir_path)
             .or_insert_with(BTreeMap::new)
@@ -1435,7 +1431,7 @@ fn build_server_file_tree(
                 if relative.is_empty() {
                     // 当前目录的文件
                     for (name, (local, server, hash, size)) in file_map {
-                        let sync_status = match (local, server) {
+                        let sync_status = match (*local, *server) {
                             (true, true) => SyncStatus::Synced,
                             (true, false) => SyncStatus::NotOnServer,
                             (false, true) => SyncStatus::OnlyOnServer,
@@ -1448,11 +1444,11 @@ fn build_server_file_tree(
                             path: if dir_path.is_empty() { name.clone() } else { format!("{}/{}", dir_path, name) },
                             node_type: NodeType::File,
                             sync_status,
-                            size,
-                            hash,
+                            size: *size,
+                            hash: hash.clone(),
                             children: Vec::new(),
                             checked: true,
-                            exists_on_server: server,
+                            exists_on_server: *server,
                         }));
                     }
                 } else if let Some(first_segment) = relative.split('/').next() {
@@ -1460,7 +1456,7 @@ fn build_server_file_tree(
                         // 直接子文件
                         let file_map = dir_map.get(path).unwrap();
                         for (name, (local, server, hash, size)) in file_map {
-                            let sync_status = match (local, server) {
+                            let sync_status = match (*local, *server) {
                                 (true, true) => SyncStatus::Synced,
                                 (true, false) => SyncStatus::NotOnServer,
                                 (false, true) => SyncStatus::OnlyOnServer,
@@ -1473,11 +1469,11 @@ fn build_server_file_tree(
                                 path: if path.is_empty() { name.clone() } else { format!("{}/{}", path, name) },
                                 node_type: NodeType::File,
                                 sync_status,
-                                size,
-                                hash,
+                                size: *size,
+                                hash: hash.clone(),
                                 children: Vec::new(),
                                 checked: true,
-                                exists_on_server: server,
+                                exists_on_server: *server,
                             }));
                         }
                     } else {
